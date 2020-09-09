@@ -1,0 +1,12 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openstack-cinder-csi-resizer-binding
+subjects:
+  - kind: ServiceAccount
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-openstack-cinder-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: openstack-cinder-external-resizer-role
+  apiGroup: rbac.authorization.k8s.io
