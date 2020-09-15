@@ -1,0 +1,105 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: openstack-cinder-csi-driver-controller
+  namespace: openshift-openstack-cinder-csi-driver
+spec:
+  selector:
+    matchLabels:
+      app: openstack-cinder-csi-driver-controller
+  serviceName: openstack-cinder-csi-driver-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: openstack-cinder-csi-driver-controller
+    spec:
+      hostNetwork: true
+      serviceAccount: openstack-cinder-csi-driver-controller-sa
+      priorityClassName: system-cluster-critical
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+      containers:
+      containers:
+        - name: csi-driver
+          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          args:
+            - /bin/cinder-csi-plugin
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+            - "--cluster=$(CLUSTER_NAME)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/kubernetes/clouds.conf
+            - name: CLUSTER_NAME
+              value: kubernetes
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: secret-cinderplugin
+              mountPath: /etc/kubernetes
+              readOnly: true
+        - name: csi-provisioner
+          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v2.2.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-resizer
+          image: quay.io/k8scsi/csi-resizer:v0.4.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-snapshotter
+          image: quay.io/k8scsi/csi-snapshotter:v1.2.2
+          args:
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /var/lib/csi/sockets/pluginproxy/
+              name: socket-dir
+      volumes:
+        - name: socket-dir
+          emptyDir:
+        - name: secret-cinderplugin
+          secret:
+            secretName: openstack-cloud-credentials
+            items:
+              - key: clouds.conf
+                path: clouds.conf
