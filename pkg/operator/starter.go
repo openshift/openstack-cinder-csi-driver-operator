@@ -49,6 +49,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeInformersForNamespaces,
 		generated.Asset,
 		[]string{
+			"configmap.yaml",
 			"storageclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
