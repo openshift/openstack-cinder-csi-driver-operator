@@ -8,4 +8,4 @@ data:
 kind: ConfigMap
 metadata:
   name: openstack-cinder-config
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers

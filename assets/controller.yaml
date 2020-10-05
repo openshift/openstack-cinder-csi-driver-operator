@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: openstack-cinder-csi-driver-controller
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 spec:
   selector:
     matchLabels:

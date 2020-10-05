@@ -13,7 +13,7 @@ rules:
   - use
 
 # The operator needs these config maps:
-# - read/write openshift-openstack-cinder-csi-driver/cloud-provider-config
+# - read/write openshift-cluster-csi-drivers/cloud-provider-config
 # - read-only kube-system/extension-apiserver-authentication
 # - read/write openstack-cinder-csi-driver-operator-lock
 - apiGroups:

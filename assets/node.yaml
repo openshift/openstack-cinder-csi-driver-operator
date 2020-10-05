@@ -2,7 +2,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: openstack-cinder-csi-driver-node
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 spec:
   selector:
     matchLabels:
