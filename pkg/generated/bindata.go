@@ -81,7 +81,7 @@ data:
 kind: ConfigMap
 metadata:
   name: openstack-cinder-config
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 `)
 
 func configmapYamlBytes() ([]byte, error) {
@@ -103,7 +103,7 @@ var _controllerYaml = []byte(`kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: openstack-cinder-csi-driver-controller
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 spec:
   selector:
     matchLabels:
@@ -124,7 +124,7 @@ spec:
       containers:
       containers:
         - name: csi-driver
-          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          image: ${DRIVER_IMAGE}
           args:
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -153,7 +153,7 @@ spec:
               mountPath: /etc/kubernetes/config
               readOnly: true
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+          image: ${PROVISIONER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -165,7 +165,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v2.2.0
+          image: ${ATTACHER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -177,7 +177,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.4.0
+          image: ${RESIZER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
           env:
@@ -188,7 +188,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-snapshotter
-          image: quay.io/k8scsi/csi-snapshotter:v1.2.2
+          image: ${SNAPSHOTTER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
           env:
@@ -234,7 +234,7 @@ var _controller_saYaml = []byte(`apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: openstack-cinder-csi-driver-controller-sa
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 `)
 
 func controller_saYamlBytes() ([]byte, error) {
@@ -283,7 +283,7 @@ var _nodeYaml = []byte(`kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: openstack-cinder-csi-driver-node
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 spec:
   selector:
     matchLabels:
@@ -306,7 +306,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          image: ${DRIVER_IMAGE}
           args :
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -341,7 +341,7 @@ spec:
               mountPath: /etc/kubernetes/config
               readOnly: true
         - name: node-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -419,7 +419,7 @@ var _node_saYaml = []byte(`apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: openstack-cinder-csi-driver-node-sa
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 `)
 
 func node_saYamlBytes() ([]byte, error) {
@@ -444,7 +444,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-controller-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-external-attacher-role
@@ -483,6 +483,9 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
 `)
 
 func rbacAttacher_roleYamlBytes() ([]byte, error) {
@@ -507,7 +510,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-controller-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-privileged-role
@@ -536,7 +539,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-node-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-privileged-role
@@ -593,7 +596,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-controller-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-external-provisioner-role
@@ -632,6 +635,12 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["get", "list"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["csinodes"]
     verbs: ["get", "list", "watch"]
@@ -662,7 +671,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-controller-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-external-resizer-role
@@ -704,6 +713,9 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
 `)
 
 func rbacResizer_roleYamlBytes() ([]byte, error) {
@@ -728,7 +740,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-controller-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-external-snapshotter-role
