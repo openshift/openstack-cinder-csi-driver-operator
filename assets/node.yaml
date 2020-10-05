@@ -25,7 +25,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          image: ${DRIVER_IMAGE}
           args :
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -60,7 +60,7 @@ spec:
               mountPath: /etc/kubernetes/config
               readOnly: true
         - name: node-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"

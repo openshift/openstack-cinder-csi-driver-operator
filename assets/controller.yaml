@@ -23,7 +23,7 @@ spec:
       containers:
       containers:
         - name: csi-driver
-          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          image: ${DRIVER_IMAGE}
           args:
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -52,7 +52,7 @@ spec:
               mountPath: /etc/kubernetes/config
               readOnly: true
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+          image: ${PROVISIONER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -64,7 +64,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v2.2.0
+          image: ${ATTACHER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -76,7 +76,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.4.0
+          image: ${RESIZER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
           env:
@@ -87,7 +87,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-snapshotter
-          image: quay.io/k8scsi/csi-snapshotter:v1.2.2
+          image: ${SNAPSHOTTER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
           env:
