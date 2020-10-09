@@ -18,9 +18,8 @@ spec:
       - args:
         - start
         env:
-        # Replace the upstream image with the openshift's one
         - name: DRIVER_IMAGE
-          value: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          value: quay.io/openshift/origin-openstack-cinder-csi-driver:latest
         - name: NFS_DRIVER_IMAGE
           value: quay.io/openshift/origin-csi-driver-nfs:latest
         - name: PROVISIONER_IMAGE
@@ -39,7 +38,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/openshift/origin-csi-driver-openstack-cinder-operator:latest
+        image: quay.io/openshift/origin-openstack-cinder-csi-driver-operator:latest
         imagePullPolicy: IfNotPresent
         name: openstack-cinder-csi-driver-operator
       priorityClassName: system-cluster-critical
