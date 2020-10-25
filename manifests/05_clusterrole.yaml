@@ -29,6 +29,14 @@ rules:
   - patch
   - update
 - apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - watch
+  - list
+  - get
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
@@ -149,6 +157,12 @@ rules:
   - delete
   - create
   - patch
+- apiGroups:
+  - "storage.k8s.io"
+  resources:
+  - "volumeattachments/status"
+  verbs:
+  - "patch"
 - apiGroups:
   - snapshot.storage.k8s.io
   resources:
