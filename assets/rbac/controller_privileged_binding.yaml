@@ -5,7 +5,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: openstack-cinder-csi-driver-controller-sa
-    namespace: openshift-openstack-cinder-csi-driver
+    namespace: openshift-cluster-csi-drivers
 roleRef:
   kind: ClusterRole
   name: openstack-cinder-privileged-role

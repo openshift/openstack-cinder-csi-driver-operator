@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: openstack-cinder-csi-driver-controller
-  namespace: openshift-openstack-cinder-csi-driver
+  namespace: openshift-cluster-csi-drivers
 spec:
   selector:
     matchLabels:
@@ -23,7 +23,7 @@ spec:
       containers:
       containers:
         - name: csi-driver
-          image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+          image: ${DRIVER_IMAGE}
           args:
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -38,7 +38,7 @@ spec:
             - name: CSI_ENDPOINT
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
-              value: /etc/kubernetes/clouds.conf
+              value: /etc/kubernetes/config/cloud.conf
             - name: CLUSTER_NAME
               value: kubernetes
           imagePullPolicy: "IfNotPresent"
@@ -46,10 +46,13 @@ spec:
             - name: socket-dir
               mountPath: /csi
             - name: secret-cinderplugin
-              mountPath: /etc/kubernetes
+              mountPath: /etc/kubernetes/secret
+              readOnly: true
+            - name: config-cinderplugin
+              mountPath: /etc/kubernetes/config
               readOnly: true
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+          image: ${PROVISIONER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -61,7 +64,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v2.2.0
+          image: ${ATTACHER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -73,7 +76,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.4.0
+          image: ${RESIZER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
           env:
@@ -84,7 +87,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-snapshotter
-          image: quay.io/k8scsi/csi-snapshotter:v1.2.2
+          image: ${SNAPSHOTTER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
           env:
@@ -101,5 +104,11 @@ spec:
           secret:
             secretName: openstack-cloud-credentials
             items:
-              - key: clouds.conf
-                path: clouds.conf
+              - key: clouds.yaml
+                path: clouds.yaml
+        - name: config-cinderplugin
+          configMap:
+            name: openstack-cinder-config
+            items:
+              - key: cloud.conf
+                path: cloud.conf

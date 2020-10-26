@@ -13,7 +13,7 @@ rules:
   - use
 
 # The operator needs these config maps:
-# - read/write openshift-openstack-cinder-csi-driver/cloud-provider-config
+# - read/write openshift-cluster-csi-drivers/cloud-provider-config
 # - read-only kube-system/extension-apiserver-authentication
 # - read/write openstack-cinder-csi-driver-operator-lock
 - apiGroups:
@@ -28,6 +28,14 @@ rules:
   - delete
   - patch
   - update
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - watch
+  - list
+  - get
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -149,6 +157,12 @@ rules:
   - delete
   - create
   - patch
+- apiGroups:
+  - "storage.k8s.io"
+  resources:
+  - "volumeattachments/status"
+  verbs:
+  - "patch"
 - apiGroups:
   - snapshot.storage.k8s.io
   resources:
