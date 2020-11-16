@@ -19,7 +19,9 @@ import (
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/controllers/cinder"
 	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/util"
 )
 
 const (
@@ -102,13 +104,27 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		return err
 	}
 
+	openstackClient, err := cinder.NewOpenStackClient(util.CloudConfigFilename, kubeInformersForNamespaces)
+	if err != nil {
+		return err
+	}
+
+	cinderController := cinder.NewCinderController(
+		operatorClient,
+		kubeClient,
+		kubeInformersForNamespaces,
+		openstackClient,
+		[]cinder.Runnable{csiControllerSet},
+		controllerConfig.EventRecorder,
+	)
+
 	klog.Info("Starting the informers")
 	go kubeInformersForNamespaces.Start(ctx.Done())
 	go dynamicInformers.Start(ctx.Done())
 	go configInformers.Start(ctx.Done())
 
 	klog.Info("Starting controllerset")
-	go csiControllerSet.Run(ctx, 1)
+	go cinderController.Run(ctx, 1)
 
 	<-ctx.Done()
 
