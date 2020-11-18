@@ -152,6 +152,8 @@ spec:
             - name: config-cinderplugin
               mountPath: /etc/kubernetes/config
               readOnly: true
+            - name: cacert
+              mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
         - name: csi-provisioner
           image: ${PROVISIONER_IMAGE}
           args:
@@ -213,6 +215,18 @@ spec:
             items:
               - key: cloud.conf
                 path: cloud.conf
+        - name: cacert
+          # If present, extract ca-bundle.pem to
+          # /etc/kubernetes/static-pod-resources/configmaps/cloud-config
+          # Let the pod start when the ConfigMap does not exist or the certificate
+          # is not preset there. The certificate file will be created once the
+          # ConfigMap is created / the cerificate is added to it.
+          configMap:
+            name: cloud-provider-config
+            items:
+            - key: ca-bundle.pem
+              path: ca-bundle.pem
+            optional: true
 `)
 
 func controllerYamlBytes() ([]byte, error) {
@@ -340,6 +354,8 @@ spec:
             - name: config-cinderplugin
               mountPath: /etc/kubernetes/config
               readOnly: true
+            - name: cacert
+              mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
         - name: node-driver-registrar
           image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           args:
@@ -398,6 +414,17 @@ spec:
             items:
               - key: cloud.conf
                 path: cloud.conf
+        - name: cacert
+          # Extract ca-bundle.pem to /etc/kubernetes/static-pod-resources/configmaps/cloud-config if present.
+          # Let the pod start when the ConfigMap does not exist or the certificate
+          # is not preset there. The certificate file will be created once the
+          # ConfigMap is created / the cerificate is added to it.
+          configMap:
+            name: cloud-provider-config
+            items:
+            - key: ca-bundle.pem
+              path: ca-bundle.pem
+            optional: true
 `)
 
 func nodeYamlBytes() ([]byte, error) {
