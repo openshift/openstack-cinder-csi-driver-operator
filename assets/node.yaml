@@ -61,6 +61,10 @@ spec:
               readOnly: true
             - name: cacert
               mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
         - name: node-driver-registrar
           image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           args:
@@ -86,6 +90,10 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
       volumes:
         - name: socket-dir
           hostPath:
