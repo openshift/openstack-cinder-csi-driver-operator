@@ -154,6 +154,10 @@ spec:
               readOnly: true
             - name: cacert
               mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
         - name: csi-provisioner
           image: ${PROVISIONER_IMAGE}
           args:
@@ -166,6 +170,10 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
         - name: csi-attacher
           image: ${ATTACHER_IMAGE}
           args:
@@ -178,6 +186,10 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
         - name: csi-resizer
           image: ${RESIZER_IMAGE}
           args:
@@ -189,6 +201,10 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
         - name: csi-snapshotter
           image: ${SNAPSHOTTER_IMAGE}
           args:
@@ -200,6 +216,10 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
       volumes:
         - name: socket-dir
           emptyDir:
@@ -356,6 +376,10 @@ spec:
               readOnly: true
             - name: cacert
               mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
         - name: node-driver-registrar
           image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           args:
@@ -381,6 +405,10 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
       volumes:
         - name: socket-dir
           hostPath:
