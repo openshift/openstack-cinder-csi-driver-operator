@@ -331,6 +331,8 @@ spec:
       hostNetwork: true
       serviceAccount: openstack-cinder-csi-driver-node-sa
       priorityClassName: system-node-critical
+      nodeSelector:
+        kubernetes.io/os: linux
       tolerations:
         - key: CriticalAddonsOnly
           operator: Exists
