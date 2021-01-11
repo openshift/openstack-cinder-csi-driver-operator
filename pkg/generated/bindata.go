@@ -881,6 +881,7 @@ metadata:
   name: standard-csi
 provisioner: cinder.csi.openstack.org
 volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
 `)
 
 func storageclassYamlBytes() ([]byte, error) {
