@@ -118,10 +118,14 @@ spec:
       hostNetwork: true
       serviceAccount: openstack-cinder-csi-driver-controller-sa
       priorityClassName: system-cluster-critical
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
       tolerations:
         - key: CriticalAddonsOnly
           operator: Exists
-      containers:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: "NoSchedule"
       containers:
         - name: csi-driver
           image: ${DRIVER_IMAGE}
