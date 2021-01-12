@@ -213,7 +213,7 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: Always
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
