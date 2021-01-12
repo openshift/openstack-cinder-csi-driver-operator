@@ -334,8 +334,7 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       tolerations:
-        - key: CriticalAddonsOnly
-          operator: Exists
+        - operator: Exists
       containers:
         - name: csi-driver
           securityContext:
