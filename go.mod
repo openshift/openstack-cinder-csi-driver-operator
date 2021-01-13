@@ -10,7 +10,7 @@ require (
 	github.com/kubernetes-sigs/kube-storage-version-migrator v0.0.0-20191127225502-51849bc15f17 // indirect
 	github.com/openshift/api v0.0.0-20210112145312-790e0a84e3e0
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
-	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47 // indirect
+	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 	github.com/openshift/library-go v0.0.0-20210113192829-cfbb3f4c80c2
 	github.com/prometheus/client_golang v1.7.1
 	github.com/spf13/cobra v1.1.1
