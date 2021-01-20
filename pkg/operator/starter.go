@@ -84,7 +84,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		"controller.yaml",
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
-		configInformers,
+		nil,
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 	).WithCSIDriverNodeService(
 		"OpenStackCinderDriverNodeServiceController",
@@ -93,7 +93,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
-	)
+	).WithExtraInformers(configInformers.Config().V1().Proxies().Informer())
 
 	if err != nil {
 		return err
@@ -102,6 +102,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	klog.Info("Starting the informers")
 	go kubeInformersForNamespaces.Start(ctx.Done())
 	go dynamicInformers.Start(ctx.Done())
+	go configInformers.Start(ctx.Done())
 
 	klog.Info("Starting controllerset")
 	go csiControllerSet.Run(ctx, 1)
