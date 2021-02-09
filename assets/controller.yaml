@@ -9,7 +9,6 @@ spec:
   selector:
     matchLabels:
       app: openstack-cinder-csi-driver-controller
-  serviceName: openstack-cinder-csi-driver-controller
   replicas: 1
   template:
     metadata:
