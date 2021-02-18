@@ -136,6 +136,7 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--cloud-config=$(CLOUD_CONFIG)"
             - "--cluster=$(CLUSTER_NAME)"
+            - "--v=${LOG_LEVEL}"
           env:
             - name: NODE_ID
               valueFrom:
@@ -356,6 +357,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--cloud-config=$(CLOUD_CONFIG)"
+            - "--v=${LOG_LEVEL}"
           env:
             - name: NODE_ID
               valueFrom:
