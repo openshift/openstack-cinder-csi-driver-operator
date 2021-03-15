@@ -7,6 +7,8 @@ require (
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/gophercloud/gophercloud v0.16.0
+	github.com/gophercloud/utils v0.0.0-20210216074907-f6de111f2eae
 	github.com/openshift/api v0.0.0-20210112145312-790e0a84e3e0
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
@@ -17,9 +19,10 @@ require (
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
 	golang.org/x/text v0.3.5 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.20.1 // indirect
+	k8s.io/api v0.20.1
 	k8s.io/apimachinery v0.20.1
 	k8s.io/client-go v0.20.0
 	k8s.io/component-base v0.20.0
 	k8s.io/klog/v2 v2.4.0
+	sigs.k8s.io/yaml v1.2.0
 )
