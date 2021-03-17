@@ -127,6 +127,13 @@ spec:
         - key: node-role.kubernetes.io/master
           operator: Exists
           effect: "NoSchedule"
+      initContainers:
+        - name: init-cindercsi
+          image: ${DRIVER_IMAGE}
+          command: ['sh', '-c', "sed -i 's/cacert:.*/cacert: \/etc\/kubernetes\/static-pod-resources\/configmaps\/cloud-config\/ca-bundle.pem/g' /etc/kubernetes/secret/clouds.yaml"]
+          volumeMounts:
+          - name: secret-cinderplugin
+            mountPath: /etc/kubernetes/secret
       containers:
         - name: csi-driver
           image: ${DRIVER_IMAGE}
