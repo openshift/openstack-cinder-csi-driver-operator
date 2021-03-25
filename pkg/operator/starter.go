@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	kubeclient "k8s.io/client-go/kubernetes"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -29,6 +33,10 @@ const (
 	operandName      = "openstack-cinder-csi-driver"
 	instanceName     = "cinder.csi.openstack.org"
 	secretName       = "openstack-cloud-credentials"
+
+	customConfigNamespace = defaultNamespace
+	customConfigName      = "openstack-cinder-custom-config"
+	customConfigKey       = "cloud.conf"
 )
 
 func RunOperator(ctx context.Context, controllerConfig *controllercmd.ControllerContext) error {
@@ -40,6 +48,10 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	// Create config clientset and informer. This is used to get the cluster ID
 	configClient := configclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
 	configInformers := configinformers.NewSharedInformerFactory(configClient, 20*time.Minute)
+
+	// Create custom config lister
+	customConfigInformer := kubeInformersForNamespaces.InformersFor(customConfigNamespace).Core().V1().ConfigMaps()
+	customConfigLister := customConfigInformer.Lister().ConfigMaps(customConfigNamespace)
 
 	// Create GenericOperatorclient. This is used by the library-go controllers created down below
 	gvr := opv1.SchemeGroupVersion.WithResource("clustercsidrivers")
@@ -89,6 +101,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		nil,
 		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(defaultNamespace, secretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
+		withCustomConfigDeploymentHook(customConfigLister),
 	).WithCSIDriverNodeService(
 		"OpenStackCinderDriverNodeServiceController",
 		generated.MustAsset,
@@ -96,6 +109,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
+		withCustomConfigDaemonSetHook(customConfigLister),
 	).WithExtraInformers(configInformers.Config().V1().Proxies().Informer(), secretInformer.Informer())
 
 	if err != nil {
@@ -113,4 +127,94 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	<-ctx.Done()
 
 	return fmt.Errorf("stopped")
+}
+
+// withCustomConfigDeploymentHook executes the asset as a template to fill out the parts required
+// when using a custom config with controller deployment.
+func withCustomConfigDeploymentHook(cloudConfigLister corev1listers.ConfigMapNamespaceLister) csidrivercontrollerservicecontroller.DeploymentHookFunc {
+	return func(_ *opv1.OperatorSpec, deployment *appsv1.Deployment) error {
+		switch used, err := isCustomConfigUsed(cloudConfigLister); {
+		case err != nil:
+			return fmt.Errorf("could not determine if a custom Cinder CSI driver config is in use: %w", err)
+		case !used:
+			return nil
+		}
+		deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "custom-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: customConfigName},
+				},
+			},
+		})
+		for i := range deployment.Spec.Template.Spec.Containers {
+			container := &deployment.Spec.Template.Spec.Containers[i]
+			if container.Name != "csi-driver" {
+				continue
+			}
+			container.Env = append(container.Env, corev1.EnvVar{
+				Name:  "CLOUD_CONFIG",
+				Value: "/etc/kubernetes/custom-config/cloud.conf",
+			})
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+				Name:      "custom-config",
+				MountPath: "/etc/kubernetes/custom-config",
+				ReadOnly:  true,
+			})
+			return nil
+		}
+		return fmt.Errorf("could not use custom config because the csi-driver container is missing from the deployment")
+	}
+}
+
+// withCustomConfigDaemonSetHook executes the asset as a template to fill out the parts required
+// when using a custom config with node controller daemonset.
+func withCustomConfigDaemonSetHook(cloudConfigLister corev1listers.ConfigMapNamespaceLister) csidrivernodeservicecontroller.DaemonSetHookFunc {
+	return func(_ *opv1.OperatorSpec, daemonset *appsv1.DaemonSet) error {
+		switch used, err := isCustomConfigUsed(cloudConfigLister); {
+		case err != nil:
+			return fmt.Errorf("could not determine if a custom Cinder CSI driver config is in use: %w", err)
+		case !used:
+			return nil
+		}
+		daemonset.Spec.Template.Spec.Volumes = append(daemonset.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "custom-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: customConfigName},
+				},
+			},
+		})
+		for i := range daemonset.Spec.Template.Spec.Containers {
+			container := &daemonset.Spec.Template.Spec.Containers[i]
+			if container.Name != "csi-driver" {
+				continue
+			}
+			container.Env = append(container.Env, corev1.EnvVar{
+				Name:  "CLOUD_CONFIG",
+				Value: "/etc/kubernetes/custom-config/cloud.conf",
+			})
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+				Name:      "custom-config",
+				MountPath: "/etc/kubernetes/custom-config",
+				ReadOnly:  true,
+			})
+			return nil
+		}
+		return fmt.Errorf("could not use custom config because the csi-driver container is missing from the deployment")
+	}
+}
+
+// isCustomConfigUsed returns true if the cloud config ConfigMap exists and contains a custom Cinder CSI driver config.
+func isCustomConfigUsed(cloudConfigLister corev1listers.ConfigMapNamespaceLister) (bool, error) {
+	cloudConfigCM, err := cloudConfigLister.Get(customConfigName)
+	if errors.IsNotFound(err) {
+		// no cloud config ConfigMap so there is no custom config
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to get the %s/%s ConfigMap: %w", customConfigNamespace, customConfigName, err)
+	}
+	_, exists := cloudConfigCM.Data[customConfigKey]
+	return exists, nil
 }
