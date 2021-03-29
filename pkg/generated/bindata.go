@@ -135,7 +135,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--cloud-config=$(CLOUD_CONFIG)"
-            - "--cluster=$(CLUSTER_NAME)"
+            - "--cluster=${CLUSTER_ID}"
             - "--v=${LOG_LEVEL}"
           env:
             - name: NODE_ID
@@ -146,8 +146,6 @@ spec:
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
               value: /etc/kubernetes/config/cloud.conf
-            - name: CLUSTER_NAME
-              value: kubernetes
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
