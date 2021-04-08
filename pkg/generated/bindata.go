@@ -9,14 +9,20 @@
 // assets/rbac/attacher_binding.yaml
 // assets/rbac/attacher_role.yaml
 // assets/rbac/controller_privileged_binding.yaml
+// assets/rbac/kube_rbac_proxy_binding.yaml
+// assets/rbac/kube_rbac_proxy_role.yaml
 // assets/rbac/node_privileged_binding.yaml
 // assets/rbac/privileged_role.yaml
+// assets/rbac/prometheus_role.yaml
+// assets/rbac/prometheus_rolebinding.yaml
 // assets/rbac/provisioner_binding.yaml
 // assets/rbac/provisioner_role.yaml
 // assets/rbac/resizer_binding.yaml
 // assets/rbac/resizer_role.yaml
 // assets/rbac/snapshotter_binding.yaml
 // assets/rbac/snapshotter_role.yaml
+// assets/service.yaml
+// assets/servicemonitor.yaml
 // assets/storageclass.yaml
 package generated
 
@@ -169,6 +175,8 @@ spec:
             - "--timeout=3m"
             - "--feature-gates=Topology=true"
             - "--default-fstype=ext4"
+            - "--http-endpoint=localhost:8202"
+            - "--v=${LOG_LEVEL}"
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
@@ -180,11 +188,35 @@ spec:
             requests:
               memory: 50Mi
               cpu: 10m
+          # kube-rbac-proxy for external-provisioner container.
+          # Provides https proxy for http-based external-provisioner metrics.
+        - name: provisioner-kube-rbac-proxy
+          args:
+          - --secure-listen-address=0.0.0.0:9202
+          - --upstream=http://127.0.0.1:8202/
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --logtostderr=true
+          image: ${KUBE_RBAC_PROXY_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 9202
+            name: provisioner-m
+            protocol: TCP
+          resources:
+            requests:
+              memory: 20Mi
+              cpu: 10m
+          volumeMounts:
+          - mountPath: /etc/tls/private
+            name: metrics-serving-cert
         - name: csi-attacher
           image: ${ATTACHER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
+            - "--http-endpoint=localhost:8203"
+            - "--v=${LOG_LEVEL}"
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
@@ -196,10 +228,32 @@ spec:
             requests:
               memory: 50Mi
               cpu: 10m
+        - name: attacher-kube-rbac-proxy
+          args:
+          - --secure-listen-address=0.0.0.0:9203
+          - --upstream=http://127.0.0.1:8203/
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --logtostderr=true
+          image: ${KUBE_RBAC_PROXY_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 9203
+            name: attacher-m
+            protocol: TCP
+          resources:
+            requests:
+              memory: 20Mi
+              cpu: 10m
+          volumeMounts:
+          - mountPath: /etc/tls/private
+            name: metrics-serving-cert
         - name: csi-resizer
           image: ${RESIZER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
+            - "--http-endpoint=localhost:8204"
+            - "--v=${LOG_LEVEL}"
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
@@ -211,10 +265,32 @@ spec:
             requests:
               memory: 50Mi
               cpu: 10m
+        - name: resizer-kube-rbac-proxy
+          args:
+          - --secure-listen-address=0.0.0.0:9204
+          - --upstream=http://127.0.0.1:8204/
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --logtostderr=true
+          image: ${KUBE_RBAC_PROXY_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 9204
+            name: resizer-m
+            protocol: TCP
+          resources:
+            requests:
+              memory: 20Mi
+              cpu: 10m
+          volumeMounts:
+          - mountPath: /etc/tls/private
+            name: metrics-serving-cert
         - name: csi-snapshotter
           image: ${SNAPSHOTTER_IMAGE}
           args:
             - "--csi-address=$(ADDRESS)"
+            - "--http-endpoint=localhost:8205"
+            - "--v=${LOG_LEVEL}"
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
@@ -226,6 +302,26 @@ spec:
             requests:
               memory: 50Mi
               cpu: 10m
+        - name: snapshotter-kube-rbac-proxy
+          args:
+          - --secure-listen-address=0.0.0.0:9205
+          - --upstream=http://127.0.0.1:8205/
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --logtostderr=true
+          image: ${KUBE_RBAC_PROXY_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 9205
+            name: snapshotter-m
+            protocol: TCP
+          resources:
+            requests:
+              memory: 20Mi
+              cpu: 10m
+          volumeMounts:
+          - mountPath: /etc/tls/private
+            name: metrics-serving-cert
       volumes:
         - name: socket-dir
           emptyDir:
@@ -253,6 +349,9 @@ spec:
             - key: ca-bundle.pem
               path: ca-bundle.pem
             optional: true
+        - name: metrics-serving-cert
+          secret:
+            secretName: openstack-cinder-csi-driver-controller-metrics-serving-cert
 `)
 
 func controllerYamlBytes() ([]byte, error) {
@@ -601,6 +700,65 @@ func rbacController_privileged_bindingYaml() (*asset, error) {
 	return a, nil
 }
 
+var _rbacKube_rbac_proxy_bindingYaml = []byte(`# Allow kube-rbac-proxies to create tokenreviews to check Prometheus identity when scraping metrics.
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openstack-cinder-kube-rbac-proxy-binding
+subjects:
+  - kind: ServiceAccount
+    name: openstack-cinder-csi-driver-controller-sa
+    namespace: openshift-cluster-csi-drivers
+roleRef:
+  kind: ClusterRole
+  name: openstack-cinder-kube-rbac-proxy-role
+  apiGroup: rbac.authorization.k8s.io
+`)
+
+func rbacKube_rbac_proxy_bindingYamlBytes() ([]byte, error) {
+	return _rbacKube_rbac_proxy_bindingYaml, nil
+}
+
+func rbacKube_rbac_proxy_bindingYaml() (*asset, error) {
+	bytes, err := rbacKube_rbac_proxy_bindingYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "rbac/kube_rbac_proxy_binding.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _rbacKube_rbac_proxy_roleYaml = []byte(`# Allow kube-rbac-proxies to create tokenreviews to check Prometheus identity when scraping metrics.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openstack-cinder-kube-rbac-proxy-role
+rules:
+  - apiGroups:
+    - "authentication.k8s.io"
+    resources:
+    - "tokenreviews"
+    verbs:
+    - "create"
+`)
+
+func rbacKube_rbac_proxy_roleYamlBytes() ([]byte, error) {
+	return _rbacKube_rbac_proxy_roleYaml, nil
+}
+
+func rbacKube_rbac_proxy_roleYaml() (*asset, error) {
+	bytes, err := rbacKube_rbac_proxy_roleYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "rbac/kube_rbac_proxy_role.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _rbacNode_privileged_bindingYaml = []byte(`kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -654,6 +812,71 @@ func rbacPrivileged_roleYaml() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "rbac/privileged_role.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _rbacPrometheus_roleYaml = []byte(`# Role for accessing metrics exposed by the operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openstack-cinder-csi-driver-prometheus
+  namespace: openshift-cluster-csi-drivers
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+`)
+
+func rbacPrometheus_roleYamlBytes() ([]byte, error) {
+	return _rbacPrometheus_roleYaml, nil
+}
+
+func rbacPrometheus_roleYaml() (*asset, error) {
+	bytes, err := rbacPrometheus_roleYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "rbac/prometheus_role.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _rbacPrometheus_rolebindingYaml = []byte(`# Grant cluster-monitoring access to the operator metrics service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openstack-cinder-csi-driver-prometheus
+  namespace: openshift-cluster-csi-drivers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: openstack-cinder-csi-driver-prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus-k8s
+  namespace: openshift-monitoring
+`)
+
+func rbacPrometheus_rolebindingYamlBytes() ([]byte, error) {
+	return _rbacPrometheus_rolebindingYaml, nil
+}
+
+func rbacPrometheus_rolebindingYaml() (*asset, error) {
+	bytes, err := rbacPrometheus_rolebindingYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "rbac/prometheus_rolebinding.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -886,6 +1109,114 @@ func rbacSnapshotter_roleYaml() (*asset, error) {
 	return a, nil
 }
 
+var _serviceYaml = []byte(`apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: openstack-cinder-csi-driver-controller-metrics-serving-cert
+  labels:
+    app: openstack-cinder-csi-driver-controller-metrics
+  name: openstack-cinder-csi-driver-controller-metrics
+  namespace: openshift-cluster-csi-drivers
+spec:
+  ports:
+  - name: provisioner-m
+    port: 443
+    protocol: TCP
+    targetPort: provisioner-m
+  - name: attacher-m
+    port: 444
+    protocol: TCP
+    targetPort: attacher-m
+  - name: resizer-m
+    port: 445
+    protocol: TCP
+    targetPort: resizer-m
+  - name: snapshotter-m
+    port: 446
+    protocol: TCP
+    targetPort: snapshotter-m
+  selector:
+    app: openstack-cinder-csi-driver-controller
+  sessionAffinity: None
+  type: ClusterIP
+`)
+
+func serviceYamlBytes() ([]byte, error) {
+	return _serviceYaml, nil
+}
+
+func serviceYaml() (*asset, error) {
+	bytes, err := serviceYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "service.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _servicemonitorYaml = []byte(`apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openstack-cinder-csi-driver-controller-monitor
+  namespace: openshift-cluster-csi-drivers
+spec:
+  endpoints:
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    path: /metrics
+    port: provisioner-m
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+      serverName: openstack-cinder-csi-driver-controller-metrics.openshift-cluster-csi-drivers.svc
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    path: /metrics
+    port: attacher-m
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+      serverName: openstack-cinder-csi-driver-controller-metrics.openshift-cluster-csi-drivers.svc
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    path: /metrics
+    port: resizer-m
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+      serverName: openstack-cinder-csi-driver-controller-metrics.openshift-cluster-csi-drivers.svc
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    path: /metrics
+    port: snapshotter-m
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+      serverName: openstack-cinder-csi-driver-controller-metrics.openshift-cluster-csi-drivers.svc
+  jobLabel: component
+  selector:
+    matchLabels:
+      app: openstack-cinder-csi-driver-controller-metrics
+`)
+
+func servicemonitorYamlBytes() ([]byte, error) {
+	return _servicemonitorYaml, nil
+}
+
+func servicemonitorYaml() (*asset, error) {
+	bytes, err := servicemonitorYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "servicemonitor.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _storageclassYaml = []byte(`apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -971,14 +1302,20 @@ var _bindata = map[string]func() (*asset, error){
 	"rbac/attacher_binding.yaml":              rbacAttacher_bindingYaml,
 	"rbac/attacher_role.yaml":                 rbacAttacher_roleYaml,
 	"rbac/controller_privileged_binding.yaml": rbacController_privileged_bindingYaml,
+	"rbac/kube_rbac_proxy_binding.yaml":       rbacKube_rbac_proxy_bindingYaml,
+	"rbac/kube_rbac_proxy_role.yaml":          rbacKube_rbac_proxy_roleYaml,
 	"rbac/node_privileged_binding.yaml":       rbacNode_privileged_bindingYaml,
 	"rbac/privileged_role.yaml":               rbacPrivileged_roleYaml,
+	"rbac/prometheus_role.yaml":               rbacPrometheus_roleYaml,
+	"rbac/prometheus_rolebinding.yaml":        rbacPrometheus_rolebindingYaml,
 	"rbac/provisioner_binding.yaml":           rbacProvisioner_bindingYaml,
 	"rbac/provisioner_role.yaml":              rbacProvisioner_roleYaml,
 	"rbac/resizer_binding.yaml":               rbacResizer_bindingYaml,
 	"rbac/resizer_role.yaml":                  rbacResizer_roleYaml,
 	"rbac/snapshotter_binding.yaml":           rbacSnapshotter_bindingYaml,
 	"rbac/snapshotter_role.yaml":              rbacSnapshotter_roleYaml,
+	"service.yaml":                            serviceYaml,
+	"servicemonitor.yaml":                     servicemonitorYaml,
 	"storageclass.yaml":                       storageclassYaml,
 }
 
@@ -1033,8 +1370,12 @@ var _bintree = &bintree{nil, map[string]*bintree{
 		"attacher_binding.yaml":              {rbacAttacher_bindingYaml, map[string]*bintree{}},
 		"attacher_role.yaml":                 {rbacAttacher_roleYaml, map[string]*bintree{}},
 		"controller_privileged_binding.yaml": {rbacController_privileged_bindingYaml, map[string]*bintree{}},
+		"kube_rbac_proxy_binding.yaml":       {rbacKube_rbac_proxy_bindingYaml, map[string]*bintree{}},
+		"kube_rbac_proxy_role.yaml":          {rbacKube_rbac_proxy_roleYaml, map[string]*bintree{}},
 		"node_privileged_binding.yaml":       {rbacNode_privileged_bindingYaml, map[string]*bintree{}},
 		"privileged_role.yaml":               {rbacPrivileged_roleYaml, map[string]*bintree{}},
+		"prometheus_role.yaml":               {rbacPrometheus_roleYaml, map[string]*bintree{}},
+		"prometheus_rolebinding.yaml":        {rbacPrometheus_rolebindingYaml, map[string]*bintree{}},
 		"provisioner_binding.yaml":           {rbacProvisioner_bindingYaml, map[string]*bintree{}},
 		"provisioner_role.yaml":              {rbacProvisioner_roleYaml, map[string]*bintree{}},
 		"resizer_binding.yaml":               {rbacResizer_bindingYaml, map[string]*bintree{}},
@@ -1042,7 +1383,9 @@ var _bintree = &bintree{nil, map[string]*bintree{
 		"snapshotter_binding.yaml":           {rbacSnapshotter_bindingYaml, map[string]*bintree{}},
 		"snapshotter_role.yaml":              {rbacSnapshotter_roleYaml, map[string]*bintree{}},
 	}},
-	"storageclass.yaml": {storageclassYaml, map[string]*bintree{}},
+	"service.yaml":        {serviceYaml, map[string]*bintree{}},
+	"servicemonitor.yaml": {servicemonitorYaml, map[string]*bintree{}},
+	"storageclass.yaml":   {storageclassYaml, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
