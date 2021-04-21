@@ -136,6 +136,7 @@ spec:
       containers:
         - name: csi-driver
           image: ${DRIVER_IMAGE}
+          imagePullPolicy: IfNotPresent
           args:
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -152,7 +153,6 @@ spec:
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
               value: /etc/kubernetes/config/cloud.conf
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -170,6 +170,7 @@ spec:
               cpu: 10m
         - name: csi-provisioner
           image: ${PROVISIONER_IMAGE}
+          imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -180,7 +181,6 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -212,6 +212,7 @@ spec:
             name: metrics-serving-cert
         - name: csi-attacher
           image: ${ATTACHER_IMAGE}
+          imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
@@ -220,7 +221,6 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -250,6 +250,7 @@ spec:
             name: metrics-serving-cert
         - name: csi-resizer
           image: ${RESIZER_IMAGE}
+          imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
             - "--http-endpoint=localhost:8204"
@@ -257,7 +258,6 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -287,6 +287,7 @@ spec:
             name: metrics-serving-cert
         - name: csi-snapshotter
           image: ${SNAPSHOTTER_IMAGE}
+          imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
             - "--http-endpoint=localhost:8205"
@@ -294,7 +295,6 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
@@ -453,6 +453,7 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
           image: ${DRIVER_IMAGE}
+          imagePullPolicy: IfNotPresent
           args :
             - /bin/cinder-csi-plugin
             - "--nodeid=$(NODE_ID)"
@@ -468,7 +469,6 @@ spec:
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
               value: /etc/kubernetes/config/cloud.conf
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -495,6 +495,7 @@ spec:
               cpu: 10m
         - name: node-driver-registrar
           image: ${NODE_DRIVER_REGISTRAR_IMAGE}
+          imagePullPolicy: IfNotPresent
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -512,7 +513,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
