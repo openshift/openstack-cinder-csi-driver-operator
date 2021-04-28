@@ -290,7 +290,7 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--http-endpoint=localhost:8205"
+            - "--metrics-address=localhost:8205"
             - "--v=${LOG_LEVEL}"
           env:
             - name: ADDRESS
