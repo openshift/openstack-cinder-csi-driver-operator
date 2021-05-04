@@ -68,6 +68,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		[]string{
 			"configmap.yaml",
 			"storageclass.yaml",
+			"volumesnapshotclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
 			"node_sa.yaml",
