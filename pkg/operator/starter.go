@@ -63,11 +63,13 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	).WithStaticResourcesController(
 		"OpenStackCinderDriverStaticResourcesController",
 		kubeClient,
+		dynamicClient,
 		kubeInformersForNamespaces,
 		generated.Asset,
 		[]string{
 			"configmap.yaml",
 			"storageclass.yaml",
+			"volumesnapshotclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
 			"node_sa.yaml",
