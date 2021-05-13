@@ -287,9 +287,6 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-            - name: pods-mount-dir
-              mountPath: /var/lib/kubelet/pods
-              mountPropagation: "Bidirectional"
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
               mountPropagation: "Bidirectional"
@@ -339,10 +336,6 @@ spec:
         - name: kubelet-dir
           hostPath:
             path: /var/lib/kubelet
-            type: Directory
-        - name: pods-mount-dir
-          hostPath:
-            path: /var/lib/kubelet/pods
             type: Directory
         # - name: pods-cloud-data
           # hostPath:
