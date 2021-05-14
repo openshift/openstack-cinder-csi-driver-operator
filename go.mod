@@ -3,8 +3,6 @@ module github.com/openshift/openstack-cinder-csi-driver-operator
 go 1.16
 
 require (
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
-	github.com/go-bindata/go-bindata v3.1.2+incompatible
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/gophercloud/gophercloud v0.17.0
 	github.com/gophercloud/utils v0.0.0-20210323225332-7b186010c04f
