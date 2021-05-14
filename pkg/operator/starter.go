@@ -15,13 +15,14 @@ import (
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	configinformers "github.com/openshift/client-go/config/informers/externalversions"
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
+	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/csi/csicontrollerset"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivercontrollerservicecontroller"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivernodeservicecontroller"
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
-	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/assets"
 )
 
 const (
@@ -76,7 +77,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		dynamicClient,
 		kubeInformersForNamespaces,
-		generated.Asset,
+		assets.ReadFile,
 		[]string{
 			"configmap.yaml",
 			"storageclass.yaml",
@@ -106,28 +107,33 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		configInformers,
 	).WithCSIDriverControllerService(
 		"OpenStackCinderDriverControllerServiceController",
-		generated.MustAsset,
+		assets.ReadFile,
 		"controller.yaml",
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
 		configInformers,
+		[]factory.Informer{
+			secretInformer.Informer(),
+			configInformers.Config().V1().Proxies().Informer(),
+		},
 		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(defaultNamespace, secretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 		withCustomConfigDeploymentHook(isMultiAZDeployment),
 	).WithCSIDriverNodeService(
 		"OpenStackCinderDriverNodeServiceController",
-		generated.MustAsset,
+		assets.ReadFile,
 		"node.yaml",
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
+		nil, // Node doesn't need to react to any changes
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
 		withCustomConfigDaemonSetHook(isMultiAZDeployment),
 	).WithServiceMonitorController(
 		"CinderServiceMonitorController",
 		dynamicClient,
-		generated.Asset,
+		assets.ReadFile,
 		"servicemonitor.yaml",
-	).WithExtraInformers(configInformers.Config().V1().Proxies().Informer(), secretInformer.Informer())
+	)
 
 	if err != nil {
 		return err
