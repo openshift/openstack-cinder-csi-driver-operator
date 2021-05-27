@@ -2,10 +2,38 @@
 
 An operator to deploy the [OpenStack Cinder CSI driver](https://github.com/openshift/cloud-provider-openstack/tree/master/pkg/csi/cinder) in OpenShift.
 
-## Design
+# Quick start
 
-The operator is based on [openshift/library-go](https://github.com/openshift/library-go) and manages `ClusterCSIDriver` instance named `cinder.csi.openstack.org`.
+Before running the operator manually, you must remove the operator installed by CSO/CVO
 
-# Usage
+```shell
+# Scale down CVO and CSO
+oc scale --replicas=0 deploy/cluster-version-operator -n openshift-cluster-version
+oc scale --replicas=0 deploy/cluster-storage-operator -n openshift-cluster-storage-operator
 
-The operator is installed by default by cluster-storage-operator when OpenShift is installed on OpenStack. Deployment YAML files in `manifests/` directory are only for quick & dirty startup, the authoritative manifests are in [cluster-storage-operator project](https://github.com/openshift/cluster-storage-operator/tree/master/assets/csidriveroperators/openstack-cinder).
+# Delete operator resources (daemonset, deployments)
+oc -n openshift-cluster-csi-drivers delete deployment.apps/openstack-cinder-csi-driver-operator deployment.apps/openstack-cinder-csi-driver-controller daemonset.apps/openstack-cinder-csi-driver-node
+```
+
+To build and run the operator locally:
+
+```shell
+# Create only the resources the operator needs to run via CLI
+oc apply -f https://raw.githubusercontent.com/openshift/cluster-storage-operator/master/assets/csidriveroperators/openstack-cinder/08_cr.yaml
+
+# Build the operator
+make
+
+# Set the environment variables
+export DRIVER_IMAGE=quay.io/openshift/origin-openstack-cinder-csi-driver:latest
+export PROVISIONER_IMAGE=quay.io/openshift/origin-csi-external-provisioner:latest
+export ATTACHER_IMAGE=quay.io/openshift/origin-csi-external-attacher:latest
+export RESIZER_IMAGE=quay.io/openshift/origin-csi-external-resizer:latest
+export SNAPSHOTTER_IMAGE=quay.io/openshift/origin-csi-external-snapshotter:latest
+export NODE_DRIVER_REGISTRAR_IMAGE=quay.io/openshift/origin-csi-node-driver-registrar:latest
+export LIVENESS_PROBE_IMAGE=quay.io/openshift/origin-csi-livenessprobe:latest
+export KUBE_RBAC_PROXY_IMAGE=quay.io/openshift/origin-kube-rbac-proxy:latest
+
+# Run the operator via CLI
+./openstack-cinder-csi-driver-operator start --kubeconfig $MY_KUBECONFIG --namespace openshift-cluster-csi-drivers
+```
