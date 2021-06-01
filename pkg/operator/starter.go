@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/dynamic"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -30,6 +31,8 @@ const (
 	operandName      = "openstack-cinder-csi-driver"
 	instanceName     = "cinder.csi.openstack.org"
 	secretName       = "openstack-cloud-credentials"
+
+	multiAZConfigPath = "/etc/kubernetes/config/multiaz-cloud.conf"
 )
 
 func RunOperator(ctx context.Context, controllerConfig *controllercmd.ControllerContext) error {
@@ -53,6 +56,14 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	if err != nil {
 		return err
 	}
+
+	ci, err := getCloudInfo()
+	if err != nil {
+		return fmt.Errorf("couldn't collect info about cloud availability zones: %w", err)
+	}
+	// We consider a cloud multiaz when it either have several different zones or compute and volumes
+	// are different.
+	isMultiAZDeployment := len(ci.ComputeZones) > 1 || len(ci.VolumeZones) > 1 || ci.ComputeZones[0] != ci.VolumeZones[0]
 
 	csiControllerSet := csicontrollerset.NewCSIControllerSet(
 		operatorClient,
@@ -102,6 +113,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		configInformers,
 		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(defaultNamespace, secretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
+		withCustomConfigDeploymentHook(isMultiAZDeployment),
 	).WithCSIDriverNodeService(
 		"OpenStackCinderDriverNodeServiceController",
 		generated.MustAsset,
@@ -109,6 +121,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
+		withCustomConfigDaemonSetHook(isMultiAZDeployment),
 	).WithServiceMonitorController(
 		"CinderServiceMonitorController",
 		dynamicClient,
@@ -131,4 +144,54 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	<-ctx.Done()
 
 	return fmt.Errorf("stopped")
+}
+
+// withCustomConfigDeploymentHook executes the asset as a template to fill out the parts required
+// when using a custom config with controller deployment.
+func withCustomConfigDeploymentHook(isMultiAZDeployment bool) csidrivercontrollerservicecontroller.DeploymentHookFunc {
+	return func(_ *opv1.OperatorSpec, deployment *appsv1.Deployment) error {
+		if !isMultiAZDeployment {
+			return nil
+		}
+
+		for i := range deployment.Spec.Template.Spec.Containers {
+			container := &deployment.Spec.Template.Spec.Containers[i]
+			if container.Name != "csi-driver" {
+				continue
+			}
+			for i, env := range container.Env {
+				if env.Name == "CLOUD_CONFIG" {
+					container.Env[i].Value = multiAZConfigPath
+					break
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("could not use multiaz config because the csi-driver container is missing from the deployment")
+	}
+}
+
+// withCustomConfigDaemonSetHook executes the asset as a template to fill out the parts required
+// when using a custom config with node controller daemonset.
+func withCustomConfigDaemonSetHook(isMultiAZDeployment bool) csidrivernodeservicecontroller.DaemonSetHookFunc {
+	return func(_ *opv1.OperatorSpec, daemonset *appsv1.DaemonSet) error {
+		if !isMultiAZDeployment {
+			return nil
+		}
+
+		for i := range daemonset.Spec.Template.Spec.Containers {
+			container := &daemonset.Spec.Template.Spec.Containers[i]
+			if container.Name != "csi-driver" {
+				continue
+			}
+			for i, env := range container.Env {
+				if env.Name == "CLOUD_CONFIG" {
+					container.Env[i].Value = multiAZConfigPath
+					break
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("could not use multiaz config because the csi-driver container is missing from the deployment")
+	}
 }

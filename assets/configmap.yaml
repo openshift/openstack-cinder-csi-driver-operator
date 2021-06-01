@@ -5,6 +5,13 @@ data:
     use-clouds = true
     clouds-file = /etc/kubernetes/secret/clouds.yaml
     cloud = openstack
+  multiaz-cloud.conf: |
+    [Global]
+    use-clouds = true
+    clouds-file = /etc/kubernetes/secret/clouds.yaml
+    cloud = openstack
+    [BlockStorage]
+    ignore-volume-az = yes
 kind: ConfigMap
 metadata:
   name: openstack-cinder-config

@@ -85,6 +85,13 @@ data:
     use-clouds = true
     clouds-file = /etc/kubernetes/secret/clouds.yaml
     cloud = openstack
+  multiaz-cloud.conf: |
+    [Global]
+    use-clouds = true
+    clouds-file = /etc/kubernetes/secret/clouds.yaml
+    cloud = openstack
+    [BlockStorage]
+    ignore-volume-az = yes
 kind: ConfigMap
 metadata:
   name: openstack-cinder-config
@@ -338,12 +345,14 @@ spec:
             items:
               - key: cloud.conf
                 path: cloud.conf
+              - key: multiaz-cloud.conf
+                path: multiaz-cloud.conf
         - name: cacert
           # If present, extract ca-bundle.pem to
           # /etc/kubernetes/static-pod-resources/configmaps/cloud-config
           # Let the pod start when the ConfigMap does not exist or the certificate
           # is not preset there. The certificate file will be created once the
-          # ConfigMap is created / the cerificate is added to it.
+          # ConfigMap is created / the certificate is added to it.
           configMap:
             name: cloud-provider-config
             items:
@@ -549,11 +558,13 @@ spec:
             items:
               - key: cloud.conf
                 path: cloud.conf
+              - key: multiaz-cloud.conf
+                path: multiaz-cloud.conf
         - name: cacert
           # Extract ca-bundle.pem to /etc/kubernetes/static-pod-resources/configmaps/cloud-config if present.
           # Let the pod start when the ConfigMap does not exist or the certificate
           # is not preset there. The certificate file will be created once the
-          # ConfigMap is created / the cerificate is added to it.
+          # ConfigMap is created / the certificate is added to it.
           configMap:
             name: cloud-provider-config
             items:
