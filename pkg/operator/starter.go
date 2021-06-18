@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/openshift/library-go/pkg/controller/factory"
+	"github.com/openshift/library-go/pkg/operator/deploymentcontroller"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/assets"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/dynamic"
 	kubeclient "k8s.io/client-go/kubernetes"
@@ -20,8 +23,6 @@ import (
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivernodeservicecontroller"
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
-
-	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/generated"
 )
 
 const (
@@ -76,7 +77,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		dynamicClient,
 		kubeInformersForNamespaces,
-		generated.Asset,
+		assets.ReadFile,
 		[]string{
 			"configmap.yaml",
 			"storageclass.yaml",
@@ -106,28 +107,32 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		configInformers,
 	).WithCSIDriverControllerService(
 		"OpenStackCinderDriverControllerServiceController",
-		generated.MustAsset,
+		assets.ReadFile,
 		"controller.yaml",
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
 		configInformers,
+		[]factory.Informer{
+			secretInformer.Informer(),
+		},
 		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(defaultNamespace, secretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 		withCustomConfigDeploymentHook(isMultiAZDeployment),
 	).WithCSIDriverNodeService(
 		"OpenStackCinderDriverNodeServiceController",
-		generated.MustAsset,
+		assets.ReadFile,
 		"node.yaml",
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
+		nil,
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
 		withCustomConfigDaemonSetHook(isMultiAZDeployment),
 	).WithServiceMonitorController(
 		"CinderServiceMonitorController",
 		dynamicClient,
-		generated.Asset,
+		assets.ReadFile,
 		"servicemonitor.yaml",
-	).WithExtraInformers(configInformers.Config().V1().Proxies().Informer(), secretInformer.Informer())
+	)
 
 	if err != nil {
 		return err
@@ -148,7 +153,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 
 // withCustomConfigDeploymentHook executes the asset as a template to fill out the parts required
 // when using a custom config with controller deployment.
-func withCustomConfigDeploymentHook(isMultiAZDeployment bool) csidrivercontrollerservicecontroller.DeploymentHookFunc {
+func withCustomConfigDeploymentHook(isMultiAZDeployment bool) deploymentcontroller.DeploymentHookFunc {
 	return func(_ *opv1.OperatorSpec, deployment *appsv1.Deployment) error {
 		if !isMultiAZDeployment {
 			return nil
