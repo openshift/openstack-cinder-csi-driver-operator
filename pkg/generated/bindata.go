@@ -885,6 +885,7 @@ kind: StorageClass
 metadata:
   name: standard-csi
 provisioner: cinder.csi.openstack.org
+reclaimPolicy: "Delete"
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 `)
