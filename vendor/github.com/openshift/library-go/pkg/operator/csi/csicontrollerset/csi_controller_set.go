@@ -16,9 +16,11 @@ import (
 	"github.com/openshift/library-go/pkg/operator/csi/csiconfigobservercontroller"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivercontrollerservicecontroller"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivernodeservicecontroller"
+	"github.com/openshift/library-go/pkg/operator/deploymentcontroller"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/loglevel"
 	"github.com/openshift/library-go/pkg/operator/management"
+	"github.com/openshift/library-go/pkg/operator/managementstatecontroller"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceapply"
 	"github.com/openshift/library-go/pkg/operator/staticresourcecontroller"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
@@ -37,7 +39,7 @@ type CSIControllerSet struct {
 	csiDriverNodeServiceController       factory.Controller
 	serviceMonitorController             factory.Controller
 
-	operatorClient v1helpers.OperatorClient
+	operatorClient v1helpers.OperatorClientWithFinalizers
 	eventRecorder  events.Recorder
 }
 
@@ -71,8 +73,8 @@ func (c *CSIControllerSet) WithLogLevelController() *CSIControllerSet {
 
 // WithManagementStateController returns a *ControllerSet with a management state controller initialized.
 func (c *CSIControllerSet) WithManagementStateController(operandName string, supportsOperandRemoval bool) *CSIControllerSet {
-	c.managementStateController = management.NewOperatorManagementStateController(operandName, c.operatorClient, c.eventRecorder)
-	if supportsOperandRemoval {
+	c.managementStateController = managementstatecontroller.NewOperatorManagementStateController(operandName, c.operatorClient, c.eventRecorder)
+	if !supportsOperandRemoval {
 		management.SetOperatorNotRemovable()
 	}
 	return c
@@ -142,7 +144,7 @@ func (c *CSIControllerSet) WithCSIDriverControllerService(
 	namespacedInformerFactory informers.SharedInformerFactory,
 	configInformer configinformers.SharedInformerFactory,
 	optionalInformers []factory.Informer,
-	optionalDeploymentHooks ...csidrivercontrollerservicecontroller.DeploymentHookFunc,
+	optionalDeploymentHooks ...deploymentcontroller.DeploymentHookFunc,
 ) *CSIControllerSet {
 	manifestFile, err := assetFunc(file)
 	if err != nil {
@@ -209,7 +211,7 @@ func (c *CSIControllerSet) WithServiceMonitorController(
 }
 
 // New returns a basic *ControllerSet without any controller.
-func NewCSIControllerSet(operatorClient v1helpers.OperatorClient, eventRecorder events.Recorder) *CSIControllerSet {
+func NewCSIControllerSet(operatorClient v1helpers.OperatorClientWithFinalizers, eventRecorder events.Recorder) *CSIControllerSet {
 	return &CSIControllerSet{
 		operatorClient: operatorClient,
 		eventRecorder:  eventRecorder,
