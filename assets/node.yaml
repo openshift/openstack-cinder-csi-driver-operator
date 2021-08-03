@@ -66,6 +66,19 @@ spec:
               readOnly: true
             - name: cacert
               mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
+          ports:
+            - name: healthz
+              # Due to hostNetwork, this port is open on all nodes!
+              containerPort: 10300
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
           resources:
             requests:
               memory: 50Mi
@@ -95,6 +108,20 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
+          resources:
+            requests:
+              memory: 50Mi
+              cpu: 10m
+        - name: csi-liveness-probe
+          image: ${LIVENESS_PROBE_IMAGE}
+          imagePullPolicy: IfNotPresent
+          args:
+            - --csi-address=/csi/csi.sock
+            - --probe-timeout=3s
+            - --health-port=10300
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
           resources:
             requests:
               memory: 50Mi
