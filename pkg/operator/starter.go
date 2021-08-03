@@ -19,6 +19,7 @@ import (
 	"github.com/openshift/library-go/pkg/operator/csi/csicontrollerset"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivercontrollerservicecontroller"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivernodeservicecontroller"
+	"github.com/openshift/library-go/pkg/operator/deploymentcontroller"
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
@@ -84,6 +85,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			"volumesnapshotclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
+			"controller_pdb.yaml",
 			"node_sa.yaml",
 			"service.yaml",
 			"rbac/attacher_role.yaml",
@@ -154,7 +156,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 
 // withCustomConfigDeploymentHook executes the asset as a template to fill out the parts required
 // when using a custom config with controller deployment.
-func withCustomConfigDeploymentHook(isMultiAZDeployment bool) csidrivercontrollerservicecontroller.DeploymentHookFunc {
+func withCustomConfigDeploymentHook(isMultiAZDeployment bool) deploymentcontroller.DeploymentHookFunc {
 	return func(_ *opv1.OperatorSpec, deployment *appsv1.Deployment) error {
 		if !isMultiAZDeployment {
 			return nil
