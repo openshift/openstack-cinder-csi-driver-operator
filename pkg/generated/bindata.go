@@ -332,6 +332,10 @@ spec:
   selector:
     matchLabels:
       app: openstack-cinder-csi-driver-node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 10%
   template:
     metadata:
       labels:
