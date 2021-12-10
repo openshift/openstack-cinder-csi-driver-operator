@@ -264,6 +264,7 @@ spec:
             - --csi-address=/csi/csi.sock
             - --probe-timeout=3s
             - --health-port=10301
+            - --v=${LOG_LEVEL}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
