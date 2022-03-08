@@ -3,8 +3,8 @@ module github.com/openshift/openstack-cinder-csi-driver-operator
 go 1.17
 
 require (
-	github.com/gophercloud/gophercloud v0.17.0
-	github.com/gophercloud/utils v0.0.0-20210323225332-7b186010c04f
+	github.com/gophercloud/gophercloud v0.24.0
+	github.com/gophercloud/utils v0.0.0-20220307143606-8e7800759d16
 	github.com/openshift/api v0.0.0-20220118164408-e83d48817f01
 	github.com/openshift/build-machinery-go v0.0.0-20211213093930-7e33a7eb4ce3
 	github.com/openshift/client-go v0.0.0-20211209144617-7385dd6338e3
@@ -81,7 +81,7 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	golang.org/x/net v0.0.0-20220114011407-0dd24b26b47d // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
