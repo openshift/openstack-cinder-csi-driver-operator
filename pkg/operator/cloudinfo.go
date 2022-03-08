@@ -7,8 +7,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/availabilityzones"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	azutils "github.com/gophercloud/utils/openstack/compute/v2/availabilityzones"
-
-	"k8s.io/klog/v2"
 )
 
 // CloudInfo caches data fetched from the user's openstack cloud
@@ -53,8 +51,7 @@ func getCloudInfo() (*CloudInfo, error) {
 
 	err = ci.collectInfo()
 	if err != nil {
-		klog.Warningf("Failed to generate OpenStack cloud info: %v", err)
-		return nil, nil
+		return nil, fmt.Errorf("failed to generate OpenStack cloud info: %w", err)
 	}
 
 	return ci, nil
