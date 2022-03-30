@@ -24,11 +24,10 @@ import (
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
 	"github.com/openshift/openstack-cinder-csi-driver-operator/assets"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/util"
 )
 
 const (
-	// Operand and operator run in the same namespace
-	defaultNamespace   = "openshift-cluster-csi-drivers"
 	operatorName       = "openstack-cinder-csi-driver-operator"
 	operandName        = "openstack-cinder-csi-driver"
 	instanceName       = "cinder.csi.openstack.org"
@@ -41,9 +40,9 @@ const (
 func RunOperator(ctx context.Context, controllerConfig *controllercmd.ControllerContext) error {
 	// Create clientsets and informers
 	kubeClient := kubeclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
-	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(kubeClient, defaultNamespace, "")
-	secretInformer := kubeInformersForNamespaces.InformersFor(defaultNamespace).Core().V1().Secrets()
-	configMapInformer := kubeInformersForNamespaces.InformersFor(defaultNamespace).Core().V1().ConfigMaps()
+	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(kubeClient, util.DefaultNamespace, "")
+	secretInformer := kubeInformersForNamespaces.InformersFor(util.DefaultNamespace).Core().V1().Secrets()
+	configMapInformer := kubeInformersForNamespaces.InformersFor(util.DefaultNamespace).Core().V1().ConfigMaps()
 	nodeInformer := kubeInformersForNamespaces.InformersFor("").Core().V1().Nodes()
 
 	// Create config clientset and informer. This is used to get the cluster ID
@@ -115,7 +114,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		assets.ReadFile,
 		"controller.yaml",
 		kubeClient,
-		kubeInformersForNamespaces.InformersFor(defaultNamespace),
+		kubeInformersForNamespaces.InformersFor(util.DefaultNamespace),
 		configInformers,
 		[]factory.Informer{
 			nodeInformer.Informer(),
@@ -123,10 +122,10 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			configMapInformer.Informer(),
 			configInformers.Config().V1().Proxies().Informer(),
 		},
-		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(defaultNamespace, secretName, secretInformer),
+		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, secretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 		csidrivercontrollerservicecontroller.WithCABundleDeploymentHook(
-			defaultNamespace,
+			util.DefaultNamespace,
 			trustedCAConfigMap,
 			configMapInformer,
 		),
@@ -137,11 +136,11 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		assets.ReadFile,
 		"node.yaml",
 		kubeClient,
-		kubeInformersForNamespaces.InformersFor(defaultNamespace),
+		kubeInformersForNamespaces.InformersFor(util.DefaultNamespace),
 		[]factory.Informer{configMapInformer.Informer()},
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
 		csidrivernodeservicecontroller.WithCABundleDaemonSetHook(
-			defaultNamespace,
+			util.DefaultNamespace,
 			trustedCAConfigMap,
 			configMapInformer,
 		),
