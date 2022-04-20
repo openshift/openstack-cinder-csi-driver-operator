@@ -4,5 +4,5 @@ approvers:
 - tsmetana
 - gnufied
 - dobsonj
-- mandre
+- openstack-approvers
 component: "Storage"
