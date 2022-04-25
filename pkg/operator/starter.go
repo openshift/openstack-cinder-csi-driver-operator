@@ -84,7 +84,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		assets.ReadFile,
 		[]string{
 			"configmap.yaml",
-			"storageclass.yaml",
 			"volumesnapshotclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
@@ -152,6 +151,12 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		dynamicClient,
 		assets.ReadFile,
 		"servicemonitor.yaml",
+	).WithStorageClassController(
+		"CinderServiceStorageClassController",
+		assets.ReadFile,
+		"storageclass.yaml",
+		kubeClient,
+		kubeInformersForNamespaces.InformersFor(""),
 	)
 
 	if err != nil {
