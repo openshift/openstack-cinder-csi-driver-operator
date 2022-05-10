@@ -284,12 +284,10 @@ spec:
                 path: clouds.yaml
         - name: config-cinderplugin
           configMap:
-            name: openstack-cinder-config
+            name: cloud-conf
             items:
               - key: cloud.conf
                 path: cloud.conf
-              - key: multiaz-cloud.conf
-                path: multiaz-cloud.conf
         - name: cacert
           # If present, extract ca-bundle.pem to
           # /etc/kubernetes/static-pod-resources/configmaps/cloud-config

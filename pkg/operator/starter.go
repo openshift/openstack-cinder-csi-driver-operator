@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/dynamic"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -19,36 +18,36 @@ import (
 	"github.com/openshift/library-go/pkg/operator/csi/csicontrollerset"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivercontrollerservicecontroller"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivernodeservicecontroller"
-	"github.com/openshift/library-go/pkg/operator/deploymentcontroller"
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
 	"github.com/openshift/openstack-cinder-csi-driver-operator/assets"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/controllers/config"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/util"
 )
 
 const (
-	// Operand and operator run in the same namespace
-	defaultNamespace   = "openshift-cluster-csi-drivers"
 	operatorName       = "openstack-cinder-csi-driver-operator"
 	operandName        = "openstack-cinder-csi-driver"
 	instanceName       = "cinder.csi.openstack.org"
 	secretName         = "openstack-cloud-credentials"
 	trustedCAConfigMap = "openstack-cinder-csi-driver-trusted-ca-bundle"
 
-	multiAZConfigPath = "/etc/kubernetes/config/multiaz-cloud.conf"
+	resyncInterval = 20 * time.Minute
 )
 
 func RunOperator(ctx context.Context, controllerConfig *controllercmd.ControllerContext) error {
+
 	// Create clientsets and informers
 	kubeClient := kubeclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
-	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(kubeClient, defaultNamespace, "")
-	secretInformer := kubeInformersForNamespaces.InformersFor(defaultNamespace).Core().V1().Secrets()
-	configMapInformer := kubeInformersForNamespaces.InformersFor(defaultNamespace).Core().V1().ConfigMaps()
+	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(kubeClient, util.DefaultNamespace, util.OpenShiftConfigNamespace, "")
+	secretInformer := kubeInformersForNamespaces.InformersFor(util.DefaultNamespace).Core().V1().Secrets()
+	configMapInformer := kubeInformersForNamespaces.InformersFor(util.DefaultNamespace).Core().V1().ConfigMaps()
 	nodeInformer := kubeInformersForNamespaces.InformersFor("").Core().V1().Nodes()
 
 	// Create config clientset and informer. This is used to get the cluster ID
 	configClient := configclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
-	configInformers := configinformers.NewSharedInformerFactory(configClient, 20*time.Minute)
+	configInformers := configinformers.NewSharedInformerFactory(configClient, resyncInterval)
 
 	// Create GenericOperatorclient. This is used by the library-go controllers created down below
 	gvr := opv1.SchemeGroupVersion.WithResource("clustercsidrivers")
@@ -61,14 +60,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	if err != nil {
 		return err
 	}
-
-	ci, err := getCloudInfo()
-	if err != nil {
-		return fmt.Errorf("couldn't collect info about cloud availability zones: %w", err)
-	}
-	// We consider a cloud multiaz when it either have several different zones or compute and volumes
-	// are different.
-	isMultiAZDeployment := len(ci.ComputeZones) > 1 || len(ci.VolumeZones) > 1 || ci.ComputeZones[0] != ci.VolumeZones[0]
 
 	csiControllerSet := csicontrollerset.NewCSIControllerSet(
 		operatorClient,
@@ -83,7 +74,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeInformersForNamespaces,
 		assets.ReadFile,
 		[]string{
-			"configmap.yaml",
 			"volumesnapshotclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
@@ -115,7 +105,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		assets.ReadFile,
 		"controller.yaml",
 		kubeClient,
-		kubeInformersForNamespaces.InformersFor(defaultNamespace),
+		kubeInformersForNamespaces.InformersFor(util.DefaultNamespace),
 		configInformers,
 		[]factory.Informer{
 			nodeInformer.Informer(),
@@ -123,29 +113,27 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			configMapInformer.Informer(),
 			configInformers.Config().V1().Proxies().Informer(),
 		},
-		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(defaultNamespace, secretName, secretInformer),
+		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, secretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 		csidrivercontrollerservicecontroller.WithCABundleDeploymentHook(
-			defaultNamespace,
+			util.DefaultNamespace,
 			trustedCAConfigMap,
 			configMapInformer,
 		),
 		csidrivercontrollerservicecontroller.WithReplicasHook(nodeInformer.Lister()),
-		withCustomConfigDeploymentHook(isMultiAZDeployment),
 	).WithCSIDriverNodeService(
 		"OpenStackCinderDriverNodeServiceController",
 		assets.ReadFile,
 		"node.yaml",
 		kubeClient,
-		kubeInformersForNamespaces.InformersFor(defaultNamespace),
+		kubeInformersForNamespaces.InformersFor(util.DefaultNamespace),
 		[]factory.Informer{configMapInformer.Informer()},
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
 		csidrivernodeservicecontroller.WithCABundleDaemonSetHook(
-			defaultNamespace,
+			util.DefaultNamespace,
 			trustedCAConfigMap,
 			configMapInformer,
 		),
-		withCustomConfigDaemonSetHook(isMultiAZDeployment),
 	).WithServiceMonitorController(
 		"CinderServiceMonitorController",
 		dynamicClient,
@@ -159,69 +147,24 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeInformersForNamespaces.InformersFor(""),
 	)
 
-	if err != nil {
-		return err
-	}
+	configSyncController := config.NewConfigSyncController(
+		operatorClient,
+		kubeClient,
+		kubeInformersForNamespaces,
+		configInformers,
+		resyncInterval,
+		controllerConfig.EventRecorder)
 
 	klog.Info("Starting the informers")
 	go kubeInformersForNamespaces.Start(ctx.Done())
 	go dynamicInformers.Start(ctx.Done())
 	go configInformers.Start(ctx.Done())
 
-	klog.Info("Starting controllerset")
+	klog.Info("Starting controllers")
 	go csiControllerSet.Run(ctx, 1)
+	go configSyncController.Run(ctx, 1)
 
 	<-ctx.Done()
 
 	return fmt.Errorf("stopped")
-}
-
-// withCustomConfigDeploymentHook executes the asset as a template to fill out the parts required
-// when using a custom config with controller deployment.
-func withCustomConfigDeploymentHook(isMultiAZDeployment bool) deploymentcontroller.DeploymentHookFunc {
-	return func(_ *opv1.OperatorSpec, deployment *appsv1.Deployment) error {
-		if !isMultiAZDeployment {
-			return nil
-		}
-
-		for i := range deployment.Spec.Template.Spec.Containers {
-			container := &deployment.Spec.Template.Spec.Containers[i]
-			if container.Name != "csi-driver" {
-				continue
-			}
-			for i, env := range container.Env {
-				if env.Name == "CLOUD_CONFIG" {
-					container.Env[i].Value = multiAZConfigPath
-					break
-				}
-			}
-			return nil
-		}
-		return fmt.Errorf("could not use multiaz config because the csi-driver container is missing from the deployment")
-	}
-}
-
-// withCustomConfigDaemonSetHook executes the asset as a template to fill out the parts required
-// when using a custom config with node controller daemonset.
-func withCustomConfigDaemonSetHook(isMultiAZDeployment bool) csidrivernodeservicecontroller.DaemonSetHookFunc {
-	return func(_ *opv1.OperatorSpec, daemonset *appsv1.DaemonSet) error {
-		if !isMultiAZDeployment {
-			return nil
-		}
-
-		for i := range daemonset.Spec.Template.Spec.Containers {
-			container := &daemonset.Spec.Template.Spec.Containers[i]
-			if container.Name != "csi-driver" {
-				continue
-			}
-			for i, env := range container.Env {
-				if env.Name == "CLOUD_CONFIG" {
-					container.Env[i].Value = multiAZConfigPath
-					break
-				}
-			}
-			return nil
-		}
-		return fmt.Errorf("could not use multiaz config because the csi-driver container is missing from the deployment")
-	}
 }

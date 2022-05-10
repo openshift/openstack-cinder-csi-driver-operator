@@ -1,4 +1,4 @@
-package operator
+package config
 
 import (
 	"fmt"
@@ -24,13 +24,26 @@ type clients struct {
 
 var ci *CloudInfo
 
-// getCloudInfo fetches and caches metadata from openstack
-func getCloudInfo() (*CloudInfo, error) {
+func isMultiAZDeployment() (bool, error) {
 	var err error
 
-	if ci != nil {
-		return ci, nil
+	if ci == nil {
+		ci, err = getCloudInfo()
+		if err != nil {
+			return false, fmt.Errorf("couldn't collect info about cloud availability zones: %w", err)
+		}
 	}
+
+	// We consider a cloud multiaz when it either have several different zones
+	// or compute and volumes are different.
+	differentZones := len(ci.ComputeZones) > 0 && len(ci.VolumeZones) > 0 && ci.ComputeZones[0] != ci.VolumeZones[0]
+	return len(ci.ComputeZones) > 1 || len(ci.VolumeZones) > 1 || differentZones, nil
+}
+
+// getCloudInfo fetches and caches metadata from openstack
+func getCloudInfo() (*CloudInfo, error) {
+	var ci *CloudInfo
+	var err error
 
 	ci = &CloudInfo{
 		clients: &clients{},
