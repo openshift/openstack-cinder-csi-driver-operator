@@ -1,9 +1,9 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.18-openshift-4.11 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.18-openshift-4.12 AS builder
 WORKDIR /go/src/github.com/openshift/openstack-cinder-csi-driver-operator
 COPY . .
 RUN make
 
-FROM registry.ci.openshift.org/ocp/4.11:base
+FROM registry.ci.openshift.org/ocp/4.12:base
 COPY --from=builder /go/src/github.com/openshift/openstack-cinder-csi-driver-operator/openstack-cinder-csi-driver-operator /usr/bin/
 ENTRYPOINT ["/usr/bin/openstack-cinder-csi-driver-operator"]
 LABEL io.k8s.display-name="OpenShift OpenStack Cinder CSI Driver Operator" \
