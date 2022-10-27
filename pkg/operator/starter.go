@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	apiextclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -45,6 +47,12 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	configMapInformer := kubeInformersForNamespaces.InformersFor(util.DefaultNamespace).Core().V1().ConfigMaps()
 	nodeInformer := kubeInformersForNamespaces.InformersFor("").Core().V1().Nodes()
 
+	// Create apiextension client. This is used to verify is a VolumeSnapshotClass CRD exists.
+	apiExtClient, err := apiextclient.NewForConfig(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
+	if err != nil {
+		return err
+	}
+
 	// Create config clientset and informer. This is used to get the cluster ID
 	configClient := configclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
 	configInformers := configinformers.NewSharedInformerFactory(configClient, resyncInterval)
@@ -74,7 +82,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeInformersForNamespaces,
 		assets.ReadFile,
 		[]string{
-			"volumesnapshotclass.yaml",
 			"csidriver.yaml",
 			"controller_sa.yaml",
 			"controller_pdb.yaml",
@@ -96,6 +103,25 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			"rbac/kube_rbac_proxy_binding.yaml",
 			"rbac/prometheus_role.yaml",
 			"rbac/prometheus_rolebinding.yaml",
+		},
+	).WithConditionalStaticResourcesController(
+		"OpenStackCinderDriverConditionalStaticResourcesController",
+		kubeClient,
+		dynamicClient,
+		kubeInformersForNamespaces,
+		assets.ReadFile,
+		[]string{
+			"volumesnapshotclass.yaml",
+		},
+		// Only install when CRD exists.
+		func() bool {
+			name := "volumesnapshotclasses.snapshot.storage.k8s.io"
+			_, err := apiExtClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
+			return err == nil
+		},
+		// Don't ever remove.
+		func() bool {
+			return false
 		},
 	).WithCSIConfigObserverController(
 		"OpenStackCinderDriverCSIConfigObserverController",
