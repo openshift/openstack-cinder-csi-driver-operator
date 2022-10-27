@@ -24,7 +24,7 @@ import (
 )
 
 // This ConfigSyncController translates the ConfigMap provided by the user
-// containing configuration information for the Cinder CSI driver.
+// containing configuration information for the Cinder CSI driver .
 type ConfigSyncController struct {
 	operatorClient       v1helpers.OperatorClient
 	kubeClient           kubernetes.Interface
