@@ -140,6 +140,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(defaultNamespace),
 		[]factory.Informer{configMapInformer.Informer()},
+		csidrivernodeservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, secretName, secretInformer),
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
 		csidrivernodeservicecontroller.WithCABundleDaemonSetHook(
 			defaultNamespace,
