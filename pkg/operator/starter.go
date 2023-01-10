@@ -15,6 +15,8 @@ import (
 	opv1 "github.com/openshift/api/operator/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	configinformers "github.com/openshift/client-go/config/informers/externalversions"
+	opclient "github.com/openshift/client-go/operator/clientset/versioned"
+	opinformers "github.com/openshift/client-go/operator/informers/externalversions"
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/csi/csicontrollerset"
@@ -56,6 +58,10 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	// Create config clientset and informer. This is used to get the cluster ID
 	configClient := configclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
 	configInformers := configinformers.NewSharedInformerFactory(configClient, resyncInterval)
+
+	// operator.openshift.io client, used for ClusterCSIDriver
+	operatorClientSet := opclient.NewForConfigOrDie(rest.AddUserAgent(controllerConfig.KubeConfig, operatorName))
+	operatorInformers := opinformers.NewSharedInformerFactory(operatorClientSet, resyncInterval)
 
 	// Create GenericOperatorclient. This is used by the library-go controllers created down below
 	gvr := opv1.SchemeGroupVersion.WithResource("clustercsidrivers")
@@ -169,9 +175,12 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	).WithStorageClassController(
 		"CinderServiceStorageClassController",
 		assets.ReadFile,
-		"storageclass.yaml",
+		[]string{
+			"storageclass.yaml",
+		},
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(""),
+		operatorInformers,
 	)
 
 	configSyncController := config.NewConfigSyncController(
@@ -186,6 +195,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 	go kubeInformersForNamespaces.Start(ctx.Done())
 	go dynamicInformers.Start(ctx.Done())
 	go configInformers.Start(ctx.Done())
+	go operatorInformers.Start(ctx.Done())
 
 	klog.Info("Starting controllers")
 	go csiControllerSet.Run(ctx, 1)
