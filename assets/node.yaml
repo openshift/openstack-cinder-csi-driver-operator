@@ -67,6 +67,10 @@ spec:
               readOnly: true
             - name: cacert
               mountPath: /etc/kubernetes/static-pod-resources/configmaps/cloud-config
+            - name: etc-selinux
+              mountPath: /etc/selinux
+            - name: sys-fs
+              mountPath: /sys/fs
           ports:
             - name: healthz
               # Due to hostNetwork, this port is open on all nodes!
@@ -168,3 +172,11 @@ spec:
             - key: ca-bundle.pem
               path: ca-bundle.pem
             optional: true
+        - name: etc-selinux
+          hostPath:
+            path: /etc/selinux
+            type: DirectoryOrCreate
+        - name: sys-fs
+          hostPath:
+            path: /sys/fs
+            type: Directory
