@@ -65,6 +65,8 @@ func NewConfigSyncController(
 }
 
 func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	var err error
+
 	opSpec, _, _, err := c.operatorClient.GetOperatorState()
 	if err != nil {
 		return err
@@ -83,14 +85,25 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 		return err
 	}
 
-	sourceConfig, err := c.configMapLister.ConfigMaps(util.OpenShiftConfigNamespace).Get(infra.Spec.CloudConfig.Name)
+	var sourceConfig *v1.ConfigMap
+
+	// First, we try to retrieve from the Cinder CSI-specific config map
+	sourceConfig, err = c.configMapLister.ConfigMaps(util.OpenShiftConfigNamespace).Get("cinder-csi-config")
 	if err != nil {
+		// Failing that, we attempt to retrieve from the cloud provider-specific config map
 		if errors.IsNotFound(err) {
-			// TODO: report error after some while?
-			klog.V(2).Infof("Waiting for config map %s from %s", infra.Spec.CloudConfig.Name, util.OpenShiftConfigNamespace)
-			return nil
+			sourceConfig, err = c.configMapLister.ConfigMaps(util.OpenShiftConfigNamespace).Get(infra.Spec.CloudConfig.Name)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					// TODO: report error after some while?
+					klog.V(2).Infof("Waiting for config map %s from %s", infra.Spec.CloudConfig.Name, util.OpenShiftConfigNamespace)
+					return nil
+				}
+				return err
+			}
+		} else {
+			return err
 		}
-		return err
 	}
 
 	targetConfig, err := translateConfigMap(sourceConfig, isMultiAZDeployment)
