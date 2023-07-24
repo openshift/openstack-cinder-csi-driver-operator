@@ -88,12 +88,12 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeInformersForNamespaces,
 		assets.ReadFile,
 		[]string{
-			"csidriver.yaml",
-			"controller_sa.yaml",
-			"controller_pdb.yaml",
-			"node_sa.yaml",
-			"service.yaml",
-			"cabundle_cm.yaml",
+			// Create RBAC before creating Service Accounts.
+			// This prevents a race where the controller/node can
+			// try to create pods before the RBAC has been loaded,
+			// leading to an initial admission failure. We avoid
+			// this by exploiting the fact that the pods cannot be
+			// scheduled until the SA has been created.
 			"rbac/attacher_role.yaml",
 			"rbac/attacher_binding.yaml",
 			"rbac/privileged_role.yaml",
@@ -109,6 +109,12 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			"rbac/kube_rbac_proxy_binding.yaml",
 			"rbac/prometheus_role.yaml",
 			"rbac/prometheus_rolebinding.yaml",
+			"csidriver.yaml",
+			"controller_sa.yaml",
+			"controller_pdb.yaml",
+			"node_sa.yaml",
+			"service.yaml",
+			"cabundle_cm.yaml",
 		},
 	).WithConditionalStaticResourcesController(
 		"OpenStackCinderDriverConditionalStaticResourcesController",
