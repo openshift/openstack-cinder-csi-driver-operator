@@ -1,8 +1,5 @@
 approvers:
-- bertinatto
-- jsafrane
-- tsmetana
-- gnufied
-- dobsonj
+approvers:
+- openshift-storage-maintainers
 - openstack-approvers
-component: "Storage"
+component: "Storage / Operators"

@@ -8,3 +8,11 @@ aliases:
   - mdbooth
   - pierreprinetti
   - stephenfin
+  openshift-storage-maintainers:
+  - jsafrane
+  - tsmetana
+  - gnufied
+  - bertinatto
+  - dobsonj
+  - RomanBednar
+  - mpatlasov
