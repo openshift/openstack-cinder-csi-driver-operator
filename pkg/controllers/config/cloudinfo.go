@@ -7,6 +7,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/availabilityzones"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	azutils "github.com/gophercloud/utils/openstack/compute/v2/availabilityzones"
+	"github.com/openshift/openstack-cinder-csi-driver-operator/pkg/version"
 )
 
 // CloudInfo caches data fetched from the user's openstack cloud
@@ -52,15 +53,21 @@ func getCloudInfo() (*CloudInfo, error) {
 	opts := new(clientconfig.ClientOpts)
 	opts.Cloud = "openstack"
 
+	// we represent version using commits since we don't tag releases
+	ua := gophercloud.UserAgent{}
+	ua.Prepend(fmt.Sprintf("openstack-cinder-csi-driver-operator/%s", version.Get().GitCommit))
+
 	ci.clients.computeClient, err = clientconfig.NewServiceClient("compute", opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a compute client: %w", err)
 	}
+	ci.clients.computeClient.UserAgent = ua
 
 	ci.clients.volumeClient, err = clientconfig.NewServiceClient("volume", opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a volume client: %w", err)
 	}
+	ci.clients.volumeClient.UserAgent = ua
 
 	err = ci.collectInfo()
 	if err != nil {
