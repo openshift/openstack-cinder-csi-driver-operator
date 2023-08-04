@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,11 +16,12 @@ func TestTranslateConfigMap(t *testing.T) {
 	format.TruncatedDiff = false
 
 	tc := []struct {
-		name                string
-		source              string
-		target              string
-		isMultiAZDeployment bool
-		errMsg              string
+		name                  string
+		source                string
+		target                string
+		isMultiAZDeployment   bool
+		enableTopologyFeature bool
+		errMsg                string
 	}{
 		{
 			name: "Config with unsupported secret-namespace override",
@@ -70,7 +72,8 @@ cloud       = openstack`,
 			source: `
 [BlockStorage]
 trust-device-path = /dev/sdb1`,
-			isMultiAZDeployment: true,
+			isMultiAZDeployment:   true,
+			enableTopologyFeature: true,
 			target: `[BlockStorage]
 ignore-volume-az = yes
 
@@ -84,7 +87,8 @@ cloud       = openstack`,
 [BlockStorage]
 trust-device-path = /dev/sdb1
 ignore-volume-az = yes`,
-			isMultiAZDeployment: false,
+			isMultiAZDeployment:   false,
+			enableTopologyFeature: true,
 			target: `[BlockStorage]
 ignore-volume-az = yes
 
@@ -113,22 +117,28 @@ cloud       = openstack`,
 					Namespace: "openshift-cluster-csi-drivers",
 				},
 				Data: map[string]string{
-					"config": tc.target,
+					"config":          tc.target,
+					"enable_topology": strconv.FormatBool(tc.enableTopologyFeature),
 				},
 			}
-			actualConfigMap, err := translateConfigMap(&sourceConfigMap, tc.isMultiAZDeployment)
+			actualConfigMap, err := translateConfigMap(&sourceConfigMap, tc.isMultiAZDeployment, tc.enableTopologyFeature)
 			if tc.errMsg != "" {
 				g.Expect(err).Should(MatchError(tc.errMsg))
 				return
 			} else {
 				g.Expect(err).ToNot(HaveOccurred())
-				// The output is unsorted so we must reload and reparse the
-				// strings
+				// First, compare the value of the clouds.conf value
+				// The output is unsorted so we must reload and reparse the strings
 				expected, _ := expectedConfigMap.Data[sourceConfigKey]
 				actual, _ := actualConfigMap.Data[targetConfigKey]
 				g.Expect(err).ToNot(HaveOccurred())
 
 				actual = strings.TrimSpace(actual)
+				g.Expect(expected).Should(Equal(actual))
+
+				// Then compare the value of the topology feature flag configuration
+				expected, _ = expectedConfigMap.Data[enableTopologyKey]
+				actual, _ = actualConfigMap.Data[enableTopologyKey]
 				g.Expect(expected).Should(Equal(actual))
 			}
 		})

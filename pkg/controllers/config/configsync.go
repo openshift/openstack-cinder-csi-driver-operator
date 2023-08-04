@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
@@ -34,8 +35,9 @@ type ConfigSyncController struct {
 }
 
 const (
-	sourceConfigKey = "config"
-	targetConfigKey = "cloud.conf"
+	sourceConfigKey   = "config"
+	targetConfigKey   = "cloud.conf"
+	enableTopologyKey = "enable_topology"
 
 	infrastructureResourceName = "cluster"
 )
@@ -75,7 +77,14 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 		return nil
 	}
 
+	// TODO: This value isn't doing anything useful and we should stop setting it
+	// https://github.com/kubernetes/cloud-provider-openstack/issues/2185
 	isMultiAZDeployment, err := isMultiAZDeployment()
+	if err != nil {
+		return err
+	}
+
+	enableTopologyFeature, err := enableTopologyFeature()
 	if err != nil {
 		return err
 	}
@@ -106,7 +115,7 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 		}
 	}
 
-	targetConfig, err := translateConfigMap(sourceConfig, isMultiAZDeployment)
+	targetConfig, err := translateConfigMap(sourceConfig, isMultiAZDeployment, enableTopologyFeature)
 	if err != nil {
 		return err
 	}
@@ -118,7 +127,7 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 	return nil
 }
 
-func translateConfigMap(cloudConfig *v1.ConfigMap, isMultiAZDeployment bool) (*v1.ConfigMap, error) {
+func translateConfigMap(cloudConfig *v1.ConfigMap, isMultiAZDeployment bool, enableTopologyFeature bool) (*v1.ConfigMap, error) {
 	content, ok := cloudConfig.Data[sourceConfigKey]
 	if !ok {
 		return nil, fmt.Errorf("OpenStack config map did not contain key %s", sourceConfigKey)
@@ -212,7 +221,8 @@ func translateConfigMap(cloudConfig *v1.ConfigMap, isMultiAZDeployment bool) (*v
 			Namespace: util.DefaultNamespace,
 		},
 		Data: map[string]string{
-			targetConfigKey: buf.String(),
+			targetConfigKey:   buf.String(),
+			enableTopologyKey: strconv.FormatBool(enableTopologyFeature),
 		},
 	}
 
