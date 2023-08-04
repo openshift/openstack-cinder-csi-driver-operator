@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/availabilityzones"
@@ -24,6 +25,32 @@ type clients struct {
 }
 
 var ci *CloudInfo
+
+func enableTopologyFeature() (bool, error) {
+	var err error
+
+	if ci == nil {
+		ci, err = getCloudInfo()
+		if err != nil {
+			return false, fmt.Errorf("couldn't collect info about cloud availability zones: %w", err)
+		}
+	}
+
+	// for us to enable the topology feature, we need to have an equal number
+	// of availability zones for the compute and volume services...
+	if len(ci.ComputeZones) != len(ci.VolumeZones) {
+		return false, nil
+	}
+
+	// and these AZs have to have identical names
+	for i := range ci.ComputeZones {
+		if ci.ComputeZones[i] != ci.VolumeZones[i] {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
 
 func isMultiAZDeployment() (bool, error) {
 	var err error
@@ -103,6 +130,8 @@ func (ci *CloudInfo) getComputeZones() ([]string, error) {
 		return nil, fmt.Errorf("could not find an available compute availability zone")
 	}
 
+	sort.Strings(zones)
+
 	return zones, nil
 }
 
@@ -127,6 +156,8 @@ func (ci *CloudInfo) getVolumeZones() ([]string, error) {
 			zones = append(zones, zone.ZoneName)
 		}
 	}
+
+	sort.Strings(zones)
 
 	return zones, nil
 }
