@@ -19,7 +19,6 @@ func TestTranslateConfigMap(t *testing.T) {
 		name                  string
 		source                string
 		target                string
-		isMultiAZDeployment   bool
 		enableTopologyFeature bool
 		errMsg                string
 	}{
@@ -48,10 +47,7 @@ kubeconfig-path = https://foo`,
 			target: `[Global]
 use-clouds  = true
 clouds-file = /etc/kubernetes/secret/clouds.yaml
-cloud       = openstack
-
-[BlockStorage]
-ignore-volume-az = no`,
+cloud       = openstack`,
 		}, {
 			name: "Non-empty config",
 			source: `[BlockStorage]
@@ -60,10 +56,7 @@ trust-device-path = /dev/sdb1
 [Global]
 secret-name = openstack-credentials
 secret-namespace = kube-system`,
-			target: `[BlockStorage]
-ignore-volume-az = no
-
-[Global]
+			target: `[Global]
 use-clouds  = true
 clouds-file = /etc/kubernetes/secret/clouds.yaml
 cloud       = openstack`,
@@ -72,12 +65,8 @@ cloud       = openstack`,
 			source: `
 [BlockStorage]
 trust-device-path = /dev/sdb1`,
-			isMultiAZDeployment:   true,
 			enableTopologyFeature: true,
-			target: `[BlockStorage]
-ignore-volume-az = yes
-
-[Global]
+			target: `[Global]
 use-clouds  = true
 clouds-file = /etc/kubernetes/secret/clouds.yaml
 cloud       = openstack`,
@@ -85,14 +74,9 @@ cloud       = openstack`,
 			name: "User-provided AZ configuration is not overridden",
 			source: `
 [BlockStorage]
-trust-device-path = /dev/sdb1
-ignore-volume-az = yes`,
-			isMultiAZDeployment:   false,
+trust-device-path = /dev/sdb1`,
 			enableTopologyFeature: true,
-			target: `[BlockStorage]
-ignore-volume-az = yes
-
-[Global]
+			target: `[Global]
 use-clouds  = true
 clouds-file = /etc/kubernetes/secret/clouds.yaml
 cloud       = openstack`,
@@ -121,7 +105,7 @@ cloud       = openstack`,
 					"enable_topology": strconv.FormatBool(tc.enableTopologyFeature),
 				},
 			}
-			actualConfigMap, err := translateConfigMap(&sourceConfigMap, tc.isMultiAZDeployment, tc.enableTopologyFeature)
+			actualConfigMap, err := translateConfigMap(&sourceConfigMap, tc.enableTopologyFeature)
 			if tc.errMsg != "" {
 				g.Expect(err).Should(MatchError(tc.errMsg))
 				return

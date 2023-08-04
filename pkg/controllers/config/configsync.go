@@ -77,13 +77,6 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 		return nil
 	}
 
-	// TODO: This value isn't doing anything useful and we should stop setting it
-	// https://github.com/kubernetes/cloud-provider-openstack/issues/2185
-	isMultiAZDeployment, err := isMultiAZDeployment()
-	if err != nil {
-		return err
-	}
-
 	enableTopologyFeature, err := enableTopologyFeature()
 	if err != nil {
 		return err
@@ -115,7 +108,7 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 		}
 	}
 
-	targetConfig, err := translateConfigMap(sourceConfig, isMultiAZDeployment, enableTopologyFeature)
+	targetConfig, err := translateConfigMap(sourceConfig, enableTopologyFeature)
 	if err != nil {
 		return err
 	}
@@ -127,7 +120,7 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 	return nil
 }
 
-func translateConfigMap(cloudConfig *v1.ConfigMap, isMultiAZDeployment bool, enableTopologyFeature bool) (*v1.ConfigMap, error) {
+func translateConfigMap(cloudConfig *v1.ConfigMap, enableTopologyFeature bool) (*v1.ConfigMap, error) {
 	content, ok := cloudConfig.Data[sourceConfigKey]
 	if !ok {
 		return nil, fmt.Errorf("OpenStack config map did not contain key %s", sourceConfigKey)
@@ -182,28 +175,10 @@ func translateConfigMap(cloudConfig *v1.ConfigMap, isMultiAZDeployment bool, ena
 		if key, _ := blockStorage.GetKey("trust-device-path"); key != nil {
 			blockStorage.DeleteKey("trust-device-path")
 		}
-	} else {
-		// Section doesn't exist, ergo no validation to concern ourselves with.
-		// This probably isn't common but at least handling this allows us to
-		// recover gracefully
-		blockStorage, err = cfg.NewSection("BlockStorage")
-		if err != nil {
-			return nil, fmt.Errorf("failed to modify the provided configuration: %w", err)
-		}
-	}
 
-	// We configure '[BlockStorage] ignore-volume-az' only if the user
-	// hasn't already done so
-	if key, _ := blockStorage.GetKey("ignore-volume-az"); key == nil {
-		var ignoreVolumeAZ string
-		if isMultiAZDeployment {
-			ignoreVolumeAZ = "yes"
-		} else {
-			ignoreVolumeAZ = "no"
-		}
-		_, err = blockStorage.NewKey("ignore-volume-az", ignoreVolumeAZ)
-		if err != nil {
-			return nil, fmt.Errorf("failed to modify the provided configuration: %w", err)
+		// If that was the only key, remove the section also
+		if len(blockStorage.KeyStrings()) == 0 {
+			cfg.DeleteSection("BlockStorage")
 		}
 	}
 
