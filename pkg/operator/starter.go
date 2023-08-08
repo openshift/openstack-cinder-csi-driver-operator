@@ -31,11 +31,12 @@ import (
 )
 
 const (
-	operatorName       = "openstack-cinder-csi-driver-operator"
-	operandName        = "openstack-cinder-csi-driver"
-	instanceName       = "cinder.csi.openstack.org"
-	secretName         = "openstack-cloud-credentials"
-	trustedCAConfigMap = "openstack-cinder-csi-driver-trusted-ca-bundle"
+	operatorName          = "openstack-cinder-csi-driver-operator"
+	operandName           = "openstack-cinder-csi-driver"
+	instanceName          = "cinder.csi.openstack.org"
+	cloudCredSecretName   = "openstack-cloud-credentials"
+	metricsCertSecretName = "openstack-cinder-csi-driver-controller-metrics-serving-cert"
+	trustedCAConfigMap    = "openstack-cinder-csi-driver-trusted-ca-bundle"
 
 	resyncInterval = 20 * time.Minute
 )
@@ -151,7 +152,8 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			configMapInformer.Informer(),
 			configInformers.Config().V1().Proxies().Informer(),
 		},
-		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, secretName, secretInformer),
+		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, cloudCredSecretName, secretInformer),
+		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, metricsCertSecretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 		csidrivercontrollerservicecontroller.WithCABundleDeploymentHook(
 			util.DefaultNamespace,
@@ -166,7 +168,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		kubeClient,
 		kubeInformersForNamespaces.InformersFor(util.DefaultNamespace),
 		[]factory.Informer{configMapInformer.Informer()},
-		csidrivernodeservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, secretName, secretInformer),
+		csidrivernodeservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, cloudCredSecretName, secretInformer),
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
 		csidrivernodeservicecontroller.WithCABundleDaemonSetHook(
 			util.DefaultNamespace,
