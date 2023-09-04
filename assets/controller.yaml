@@ -19,6 +19,8 @@ spec:
     metadata:
       labels:
         app: openstack-cinder-csi-driver-controller
+      annotations:
+        target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
     spec:
       hostNetwork: true
       serviceAccount: openstack-cinder-csi-driver-controller-sa
