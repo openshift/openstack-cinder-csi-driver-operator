@@ -121,6 +121,7 @@ func (c *ConfigSyncController) sync(ctx context.Context, syncCtx factory.SyncCon
 }
 
 func translateConfigMap(cloudConfig *v1.ConfigMap, enableTopologyFeature bool) (*v1.ConfigMap, error) {
+	// Process the cloud configuration
 	content, ok := cloudConfig.Data[sourceConfigKey]
 	if !ok {
 		return nil, fmt.Errorf("OpenStack config map did not contain key %s", sourceConfigKey)
@@ -190,6 +191,16 @@ func translateConfigMap(cloudConfig *v1.ConfigMap, enableTopologyFeature bool) (
 		return nil, fmt.Errorf("failed to modify the provided configuration: %w", err)
 	}
 
+	// Process the topology feature flag
+	enableTopologyValue, ok := cloudConfig.Data[enableTopologyKey]
+	if ok {
+		// use the user-configured value if provided...
+		klog.Infof("%s configuration found; using user-provided configuration...", enableTopologyKey)
+	} else {
+		// ...but fallback to the automatic configuration if not
+		enableTopologyValue = strconv.FormatBool(enableTopologyFeature)
+	}
+
 	config := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.CinderConfigName,
@@ -197,7 +208,7 @@ func translateConfigMap(cloudConfig *v1.ConfigMap, enableTopologyFeature bool) (
 		},
 		Data: map[string]string{
 			targetConfigKey:   buf.String(),
-			enableTopologyKey: strconv.FormatBool(enableTopologyFeature),
+			enableTopologyKey: enableTopologyValue,
 		},
 	}
 
