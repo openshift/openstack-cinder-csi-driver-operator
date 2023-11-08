@@ -6,10 +6,10 @@ require (
 	github.com/gophercloud/gophercloud v0.24.0
 	github.com/gophercloud/utils v0.0.0-20220307143606-8e7800759d16
 	github.com/onsi/gomega v1.27.4
-	github.com/openshift/api v0.0.0-20230613151523-ba04973d3ed1
+	github.com/openshift/api v0.0.0-20230807132801-600991d550ac
 	github.com/openshift/build-machinery-go v0.0.0-20230306181456-d321ffa04533
 	github.com/openshift/client-go v0.0.0-20230503144108-75015d2347cb
-	github.com/openshift/library-go v0.0.0-20230724150037-c515269de16e
+	github.com/openshift/library-go v0.0.0-20231103161458-0ec67489d123
 	github.com/prometheus/client_golang v1.14.0
 	github.com/spf13/cobra v1.6.1
 	gopkg.in/ini.v1 v1.62.0
