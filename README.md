@@ -76,6 +76,7 @@ This allows the operator to automatically configure the Cinder CSI Driver and mi
 ```shell
 apiVersion: v1
 data:
+  enable_topology: "true"
   cloud.conf: |
     [Global]
     ...
