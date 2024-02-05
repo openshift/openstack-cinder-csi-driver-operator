@@ -10,11 +10,13 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/gophercloud/gophercloud/internal/ctxt"
 )
 
 // DefaultUserAgent is the default User-Agent string set in the request header.
 const (
-	DefaultUserAgent         = "gophercloud/2.0.0"
+	DefaultUserAgent         = "gophercloud/v1.9.0"
 	DefaultMaxBackoffRetries = 60
 )
 
@@ -88,7 +90,9 @@ type ProviderClient struct {
 	// with the token and reauth func zeroed. Such client can be used to perform reauthorization.
 	Throwaway bool
 
-	// Context is the context passed to the HTTP request.
+	// Context is the context passed to the HTTP request. Values set on the
+	// per-call context, when available, override values set on this
+	// context.
 	Context context.Context
 
 	// Retry backoff func is called when rate limited.
@@ -325,10 +329,12 @@ type RequestOpts struct {
 	// OkCodes contains a list of numeric HTTP status codes that should be interpreted as success. If
 	// the response has a different code, an error will be returned.
 	OkCodes []int
-	// MoreHeaders specifies additional HTTP headers to be provide on the request. If a header is
-	// provided with a blank value (""), that header will be *omitted* instead: use this to suppress
-	// the default Accept header or an inferred Content-Type, for example.
+	// MoreHeaders specifies additional HTTP headers to be provided on the request.
+	// MoreHeaders will be overridden by OmitHeaders
 	MoreHeaders map[string]string
+	// OmitHeaders specifies the HTTP headers which should be omitted.
+	// OmitHeaders will override MoreHeaders
+	OmitHeaders []string
 	// ErrorContext specifies the resource error type to return if an error is encountered.
 	// This lets resources override default error messages based on the response status code.
 	ErrorContext error
@@ -350,15 +356,20 @@ type requestState struct {
 
 var applicationJSON = "application/json"
 
-// Request performs an HTTP request using the ProviderClient's current HTTPClient. An authentication
-// header will automatically be provided.
-func (client *ProviderClient) Request(method, url string, options *RequestOpts) (*http.Response, error) {
-	return client.doRequest(method, url, options, &requestState{
+// RequestWithContext performs an HTTP request using the ProviderClient's
+// current HTTPClient. An authentication header will automatically be provided.
+func (client *ProviderClient) RequestWithContext(ctx context.Context, method, url string, options *RequestOpts) (*http.Response, error) {
+	return client.doRequest(ctx, method, url, options, &requestState{
 		hasReauthenticated: false,
 	})
 }
 
-func (client *ProviderClient) doRequest(method, url string, options *RequestOpts, state *requestState) (*http.Response, error) {
+// Request is a compatibility wrapper for Request.
+func (client *ProviderClient) Request(method, url string, options *RequestOpts) (*http.Response, error) {
+	return client.RequestWithContext(context.Background(), method, url, options)
+}
+
+func (client *ProviderClient) doRequest(ctx context.Context, method, url string, options *RequestOpts, state *requestState) (*http.Response, error) {
 	var body io.Reader
 	var contentType *string
 
@@ -387,16 +398,19 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 		body = options.RawBody
 	}
 
-	// Construct the http.Request.
-	req, err := http.NewRequest(method, url, body)
+	if client.Context != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = ctxt.Merge(ctx, client.Context)
+		defer cancel()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, err
 	}
-	if client.Context != nil {
-		req = req.WithContext(client.Context)
-	}
 
-	// Populate the request headers. Apply options.MoreHeaders last, to give the caller the chance to
+	// Populate the request headers.
+	// Apply options.MoreHeaders and options.OmitHeaders, to give the caller the chance to
 	// modify or omit any header.
 	if contentType != nil {
 		req.Header.Set("Content-Type", *contentType)
@@ -412,6 +426,10 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 		}
 	}
 
+	for _, v := range options.OmitHeaders {
+		req.Header.Del(v)
+	}
+
 	// get latest token from client
 	for k, v := range client.AuthenticatedHeaders() {
 		req.Header.Set(k, v)
@@ -425,12 +443,12 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 		if client.RetryFunc != nil {
 			var e error
 			state.retries = state.retries + 1
-			e = client.RetryFunc(client.Context, method, url, options, err, state.retries)
+			e = client.RetryFunc(ctx, method, url, options, err, state.retries)
 			if e != nil {
 				return nil, e
 			}
 
-			return client.doRequest(method, url, options, state)
+			return client.doRequest(ctx, method, url, options, state)
 		}
 		return nil, err
 	}
@@ -484,7 +502,7 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 					}
 				}
 				state.hasReauthenticated = true
-				resp, err = client.doRequest(method, url, options, state)
+				resp, err = client.doRequest(ctx, method, url, options, state)
 				if err != nil {
 					switch err.(type) {
 					case *ErrUnexpectedResponseCode:
@@ -549,17 +567,27 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 					return resp, e
 				}
 
-				return client.doRequest(method, url, options, state)
+				return client.doRequest(ctx, method, url, options, state)
 			}
 		case http.StatusInternalServerError:
 			err = ErrDefault500{respErr}
 			if error500er, ok := errType.(Err500er); ok {
 				err = error500er.Error500(respErr)
 			}
+		case http.StatusBadGateway:
+			err = ErrDefault502{respErr}
+			if error502er, ok := errType.(Err502er); ok {
+				err = error502er.Error502(respErr)
+			}
 		case http.StatusServiceUnavailable:
 			err = ErrDefault503{respErr}
 			if error503er, ok := errType.(Err503er); ok {
 				err = error503er.Error503(respErr)
+			}
+		case http.StatusGatewayTimeout:
+			err = ErrDefault504{respErr}
+			if error504er, ok := errType.(Err504er); ok {
+				err = error504er.Error504(respErr)
 			}
 		}
 
@@ -575,7 +603,7 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 				return resp, e
 			}
 
-			return client.doRequest(method, url, options, state)
+			return client.doRequest(ctx, method, url, options, state)
 		}
 
 		return resp, err
@@ -599,7 +627,7 @@ func (client *ProviderClient) doRequest(method, url string, options *RequestOpts
 					return resp, e
 				}
 
-				return client.doRequest(method, url, options, state)
+				return client.doRequest(ctx, method, url, options, state)
 			}
 			return nil, err
 		}
