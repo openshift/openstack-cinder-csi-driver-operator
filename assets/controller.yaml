@@ -96,7 +96,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--timeout=3m"
-            - "--feature-gates=Topology=true"
+            - "--feature-gates=Topology=$(ENABLE_TOPOLOGY)"
             - "--default-fstype=ext4"
             - "--http-endpoint=localhost:8202"
             - "--leader-election"
@@ -107,6 +107,11 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
+            - name: ENABLE_TOPOLOGY
+              valueFrom:
+                configMapKeyRef:
+                  name: cloud-conf
+                  key: enable_topology
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
