@@ -130,10 +130,6 @@ func (ci *CloudInfo) getVolumeZones() ([]string, error) {
 		return nil, fmt.Errorf("failed to parse response with volume availability zone list: %w", err)
 	}
 
-	if len(availabilityZoneInfo) == 0 {
-		return nil, fmt.Errorf("could not find an available volume availability zone")
-	}
-
 	var zones []string
 	for _, zone := range availabilityZoneInfo {
 		if zone.ZoneState.Available {
