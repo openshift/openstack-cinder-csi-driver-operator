@@ -36,13 +36,8 @@ func enableTopologyFeature() (bool, error) {
 		}
 	}
 
-	// for us to enable the topology feature, we need to have an equal number
-	// of availability zones for the compute and volume services...
-	if len(ci.ComputeZones) != len(ci.VolumeZones) {
-		return false, nil
-	}
-
-	// and these AZs have to have identical names
+	// for us to enable the topology feature, we need to ensure that for
+	// every compute zone there is a matching volume zone
 	for i := range ci.ComputeZones {
 		if ci.ComputeZones[i] != ci.VolumeZones[i] {
 			return false, nil
