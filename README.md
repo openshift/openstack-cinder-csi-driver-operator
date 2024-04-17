@@ -29,7 +29,7 @@ data:
 kind: ConfigMap
 metadata:
   name: cinder-csi-config
-  namepsace: openshift-config
+  namespace: openshift-config
 ```
 
 Alternatively, if using the `openshift-config / cloud-provider-config` config map:
@@ -49,12 +49,12 @@ data:
 kind: ConfigMap
 metadata:
   name: cloud-provider-config
-  namepsace: openshift-config
+  namespace: openshift-config
 ```
 
 > *Note*
 > The `openshift-config / cloud-provider-config` config map stores configuration for both services for historical reasons: previously, block device management was handled by the cloud provider.
-> This was decoupled in the 4.14 release, but support for loading configuration from the `openshift-config / cloud-provider-config` config map is retained to avoid breaking exist deployments.
+> This was decoupled in the 4.14 release, but support for loading configuration from the `openshift-config / cloud-provider-config` config map is retained to avoid breaking existing deployments.
 > Only values from the `[Global]`, `[BlockStorage]` and `[Metadata]` sections are relevant. The remainder are ignored by the CSI driver.
 > A full list of supported configuration options can be found in the [OpenStack Cloud Provider documentation](https://github.com/kubernetes/cloud-provider-openstack/blob/master/docs/cinder-csi-plugin/using-cinder-csi-plugin.md#driver-config).
 
@@ -65,8 +65,8 @@ metadata:
 >     cloud-provider-config
 >
 > If this has been modified, then the Cinder CSI Driver Operator, Cluster Cloud Controller Manager Operator,
-> and other operators and services that depend on this config map will the modified name.
-> This does not apply if the newer `cindre-csi-config` config map.
+> and other operators and services that depend on this config map will use the modified name.
+> This does not apply if using the newer `cinder-csi-config` config map.
 > For more information, refer to the [OpenShift documentation](https://docs.openshift.com/container-platform/4.12/rest_api/config_apis/infrastructure-config-openshift-io-v1.html#spec-cloudconfig).
 
 The operator loads this configuration, performs some minimal modification and validation, and saves the modified configurations to a new config map, stored at `openshift-cluster-csi-drivers / cloud-conf` under the `cloud.conf` key.
