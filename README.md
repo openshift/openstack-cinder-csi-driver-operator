@@ -10,7 +10,27 @@ It is supported starting in OpenShift 4.14 and should be used in all new deploym
 As the name might suggest, the latter stores configuration for both the Cinder CSI driver and the OpenStack Cloud Provider.
 It is used for legacy reasons.
 
-Configuration must be stored in the config map under the `config` key. For example, if using the `openshift-config / cinder-csi-config` config map:
+Three keys are supported:
+
+<dl>
+<dt>`config`</dt>
+<dd>
+This defines the main configuration for the Cinder CSI driver.
+This configuration is validated and minimally modified by the operator.
+</dd>
+<dt>`ca-bundle.pem`</dt>
+<dd>
+A CA bundle.
+If provided, this is extracted to `/etc/kubernetes/static-pod-resources/configmaps/cloud-config/ca-bundle.pem` in the pod.
+</dd>
+<dt>`enable_topology`</dt>
+<dd>
+Whether to enable topology support or not.
+If undefined, the operator will configure this automatically.
+</dd>
+</dl>
+
+For example, if using the `openshift-config / cinder-csi-config` config map:
 
 ```shell
 oc get configmap -n openshift-config cinder-csi-config -o yaml
@@ -26,6 +46,7 @@ data:
     ...
     [BlockStorage]
     ...
+  enable_topology: "true"
 kind: ConfigMap
 metadata:
   name: cinder-csi-config
@@ -69,19 +90,19 @@ metadata:
 > This does not apply if using the newer `cinder-csi-config` config map.
 > For more information, refer to the [OpenShift documentation](https://docs.openshift.com/container-platform/4.12/rest_api/config_apis/infrastructure-config-openshift-io-v1.html#spec-cloudconfig).
 
-The operator loads this configuration, performs some minimal modification and validation, and saves the modified configurations to a new config map, stored at `openshift-cluster-csi-drivers / cloud-conf` under the `cloud.conf` key.
+The configuration stored at `config` is modified, validated and saved to a new config map, stored at `openshift-cluster-csi-drivers / cloud-conf`, under the `cloud.conf` key.
 This generated config map is what is ultimately used by the Cinder CSI Driver.
 This allows the operator to automatically configure the Cinder CSI Driver and minimise the possibility of accidental misconfiguration.
 
 ```shell
 apiVersion: v1
 data:
-  enable_topology: "true"
   cloud.conf: |
     [Global]
     ...
     [BlockStorage]
     ...
+  enable_topology: "true"
 kind: ConfigMap
 metadata:
   name: cloud-conf
