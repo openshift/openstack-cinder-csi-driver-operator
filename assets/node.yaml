@@ -92,6 +92,7 @@ spec:
             requests:
               memory: 50Mi
               cpu: 10m
+          terminationMessagePolicy: FallbackToLogsOnError
         - name: node-driver-registrar
           image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           imagePullPolicy: IfNotPresent
@@ -125,6 +126,7 @@ spec:
             requests:
               memory: 50Mi
               cpu: 10m
+          terminationMessagePolicy: FallbackToLogsOnError
           livenessProbe:
             httpGet:
               path: /healthz
@@ -141,6 +143,7 @@ spec:
             - --probe-timeout=10s
             - --health-port=10300
             - --v=${LOG_LEVEL}
+          terminationMessagePolicy: FallbackToLogsOnError
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
