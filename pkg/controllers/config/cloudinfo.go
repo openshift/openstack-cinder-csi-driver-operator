@@ -36,10 +36,24 @@ func enableTopologyFeature() (bool, error) {
 		}
 	}
 
-	// for us to enable the topology feature, we need to ensure that for
-	// every compute zone there is a matching volume zone
-	for i := range ci.ComputeZones {
-		if ci.ComputeZones[i] != ci.VolumeZones[i] {
+	// for us to enable the topology feature we should have a corresponding
+	// compute AZ for each volume AZ: if we have more compute AZs than volume
+	// AZs then this clearly isn't the case
+	if len(ci.ComputeZones) > len(ci.VolumeZones) {
+		return false, nil
+	}
+
+	// likewise if the names of the various AZs don't match, that clearly isn't
+	// true
+	for _, computeZone := range ci.ComputeZones {
+		var found bool
+		for _, volumeZone := range ci.VolumeZones {
+			if computeZone == volumeZone {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false, nil
 		}
 	}
