@@ -2,11 +2,15 @@ package operator
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apiextclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
+	corev1 "k8s.io/client-go/informers/core/v1"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -21,7 +25,9 @@ import (
 	"github.com/openshift/library-go/pkg/operator/csi/csicontrollerset"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivercontrollerservicecontroller"
 	"github.com/openshift/library-go/pkg/operator/csi/csidrivernodeservicecontroller"
+	dc "github.com/openshift/library-go/pkg/operator/deploymentcontroller"
 	goc "github.com/openshift/library-go/pkg/operator/genericoperatorclient"
+	"github.com/openshift/library-go/pkg/operator/resource/resourcehash"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
 	"github.com/openshift/openstack-cinder-csi-driver-operator/assets"
@@ -39,6 +45,93 @@ const (
 
 	resyncInterval = 20 * time.Minute
 )
+
+func addDCObjectHash(deployment *appsv1.Deployment, inputHashes map[string]string) error {
+	if deployment == nil {
+		return fmt.Errorf("invalid deployment: %v", deployment)
+	}
+	if deployment.Annotations == nil {
+		deployment.Annotations = map[string]string{}
+	}
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = map[string]string{}
+	}
+	for k, v := range inputHashes {
+		annotationKey := fmt.Sprintf("operator.openshift.io/dep-%s", k)
+		if len(annotationKey) > 63 {
+			hash := sha256.Sum256([]byte(k))
+			annotationKey = fmt.Sprintf("operator.openshift.io/dep-%x", hash)
+			annotationKey = annotationKey[:63]
+		}
+		deployment.Annotations[annotationKey] = v
+		deployment.Spec.Template.Annotations[annotationKey] = v
+	}
+	return nil
+}
+
+// TODO(stephenfin): This should be migrated to library-go
+// WithDCConfigMapHashAnnotationHook creates a deployment hook that annotates a Deployment with a config map's hash.
+func WithDCConfigMapHashAnnotationHook(
+	namespace string,
+	configMapName string,
+	configMapInformer corev1.ConfigMapInformer,
+) dc.DeploymentHookFunc {
+	return func(opSpec *opv1.OperatorSpec, deployment *appsv1.Deployment) error {
+		inputHashes, err := resourcehash.MultipleObjectHashStringMapForObjectReferenceFromLister(
+			configMapInformer.Lister(),
+			nil,
+			resourcehash.NewObjectRef().ForConfigMap().InNamespace(namespace).Named(configMapName),
+		)
+		if err != nil {
+			return fmt.Errorf("invalid dependency reference: %w", err)
+		}
+		return addDCObjectHash(deployment, inputHashes)
+	}
+}
+
+func addDSObjectHash(daemonSet *appsv1.DaemonSet, inputHashes map[string]string) error {
+	if daemonSet == nil {
+		return fmt.Errorf("invalid daemonSet: %v", daemonSet)
+	}
+	if daemonSet.Annotations == nil {
+		daemonSet.Annotations = map[string]string{}
+	}
+	if daemonSet.Spec.Template.Annotations == nil {
+		daemonSet.Spec.Template.Annotations = map[string]string{}
+	}
+	for k, v := range inputHashes {
+		annotationKey := fmt.Sprintf("operator.openshift.io/dep-%s", k)
+		if len(annotationKey) > 63 {
+			hash := sha256.Sum256([]byte(k))
+			annotationKey = fmt.Sprintf("operator.openshift.io/dep-%x", hash)
+			annotationKey = annotationKey[:63]
+		}
+		daemonSet.Annotations[annotationKey] = v
+		daemonSet.Spec.Template.Annotations[annotationKey] = v
+	}
+	return nil
+}
+
+// TODO(stephenfin): This should be migrated to library-go
+// WithDSConfigMapHashAnnotationHook creates a DaemonSet hook that annotates a DaemonSet with a config map's hash.
+func WithDSConfigMapHashAnnotationHook(
+	namespace string,
+	configMapName string,
+	configMapInformer corev1.ConfigMapInformer,
+) csidrivernodeservicecontroller.DaemonSetHookFunc {
+	return func(_ *opv1.OperatorSpec, ds *appsv1.DaemonSet) error {
+		inputHashes, err := resourcehash.MultipleObjectHashStringMapForObjectReferenceFromLister(
+			configMapInformer.Lister(),
+			nil,
+			resourcehash.NewObjectRef().ForConfigMap().InNamespace(namespace).Named(configMapName),
+		)
+		if err != nil {
+			return fmt.Errorf("invalid dependency reference: %w", err)
+		}
+
+		return addDSObjectHash(ds, inputHashes)
+	}
+}
 
 func RunOperator(ctx context.Context, controllerConfig *controllercmd.ControllerContext) error {
 
@@ -153,6 +246,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		},
 		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, cloudCredSecretName, secretInformer),
 		csidrivercontrollerservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, metricsCertSecretName, secretInformer),
+		WithDCConfigMapHashAnnotationHook(util.DefaultNamespace, util.CinderConfigName, configMapInformer),
 		csidrivercontrollerservicecontroller.WithObservedProxyDeploymentHook(),
 		csidrivercontrollerservicecontroller.WithCABundleDeploymentHook(
 			util.DefaultNamespace,
@@ -169,6 +263,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		[]factory.Informer{configMapInformer.Informer()},
 		csidrivernodeservicecontroller.WithSecretHashAnnotationHook(util.DefaultNamespace, cloudCredSecretName, secretInformer),
 		csidrivernodeservicecontroller.WithObservedProxyDaemonSetHook(),
+		WithDSConfigMapHashAnnotationHook(util.DefaultNamespace, util.CinderConfigName, configMapInformer),
 		csidrivernodeservicecontroller.WithCABundleDaemonSetHook(
 			util.DefaultNamespace,
 			trustedCAConfigMap,
