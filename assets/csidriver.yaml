@@ -4,10 +4,10 @@ metadata:
   name: cinder.csi.openstack.org
 spec:
   attachRequired: true
-  podInfoOnMount: true
   fsGroupPolicy: File
+  podInfoOnMount: true
   requiresRepublish: false
-  storageCapacity: false
   seLinuxMount: true
+  storageCapacity: false
   volumeLifecycleModes:
-  - Persistent
+    - Persistent

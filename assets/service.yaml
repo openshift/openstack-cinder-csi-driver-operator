@@ -9,22 +9,22 @@ metadata:
   namespace: openshift-cluster-csi-drivers
 spec:
   ports:
-  - name: provisioner-m
-    port: 443
-    protocol: TCP
-    targetPort: provisioner-m
-  - name: attacher-m
-    port: 444
-    protocol: TCP
-    targetPort: attacher-m
-  - name: resizer-m
-    port: 445
-    protocol: TCP
-    targetPort: resizer-m
-  - name: snapshotter-m
-    port: 446
-    protocol: TCP
-    targetPort: snapshotter-m
+    - name: provisioner-m
+      port: 443
+      protocol: TCP
+      targetPort: provisioner-m
+    - name: attacher-m
+      port: 444
+      protocol: TCP
+      targetPort: attacher-m
+    - name: resizer-m
+      port: 445
+      protocol: TCP
+      targetPort: resizer-m
+    - name: snapshotter-m
+      port: 446
+      protocol: TCP
+      targetPort: snapshotter-m
   selector:
     app: openstack-cinder-csi-driver-controller
   sessionAffinity: None

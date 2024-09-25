@@ -1,6 +1,6 @@
 # Allow kube-rbac-proxies to create tokenreviews to check Prometheus identity when scraping metrics.
-kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
   name: openstack-cinder-kube-rbac-proxy-role
 rules:
