@@ -1,11 +1,14 @@
 # TODO: create custom SCC with things that the driver needs
-
-kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
   name: openstack-cinder-privileged-role
 rules:
-  - apiGroups: ["security.openshift.io"]
-    resourceNames: ["privileged"]
-    resources: ["securitycontextconstraints"]
-    verbs: ["use"]
+  - apiGroups:
+      - security.openshift.io
+    resourceNames:
+      - privileged
+    resources:
+      - securitycontextconstraints
+    verbs:
+      - use

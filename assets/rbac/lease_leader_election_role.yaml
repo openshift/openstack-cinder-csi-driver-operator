@@ -5,6 +5,14 @@ metadata:
   name: openstack-cinder-csi-driver-lease-leader-election
   namespace: openshift-cluster-csi-drivers
 rules:
-- apiGroups: ["coordination.k8s.io"]
-  resources: ["leases"]
-  verbs: ["get", "watch", "list", "delete", "update", "create"]
+- apiGroups:
+    - coordination.k8s.io
+  resources:
+    - leases
+  verbs:
+    - get
+    - watch
+    - list
+    - delete
+    - update
+    - create
