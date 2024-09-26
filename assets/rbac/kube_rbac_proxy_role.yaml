@@ -5,8 +5,8 @@ metadata:
   name: openstack-cinder-kube-rbac-proxy-role
 rules:
   - apiGroups:
-    - "authentication.k8s.io"
+    - authentication.k8s.io
     resources:
-    - "tokenreviews"
+    - tokenreviews
     verbs:
-    - "create"
+    - create
