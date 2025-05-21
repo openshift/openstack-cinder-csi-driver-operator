@@ -2,10 +2,9 @@
 
 aliases:
   openstack-approvers:
-  - EmilienM
+  - dkokkino
+  - gryf
   - mandre
-  - MaysaMacedo
-  - mdbooth
   - pierreprinetti
   - stephenfin
   openshift-storage-maintainers:
