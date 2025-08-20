@@ -37,6 +37,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
+            readOnlyRootFilesystem: true
           image: ${DRIVER_IMAGE}
           imagePullPolicy: IfNotPresent
           args :
@@ -94,6 +95,8 @@ spec:
               cpu: 10m
           terminationMessagePolicy: FallbackToLogsOnError
         - name: node-driver-registrar
+          securityContext:
+            readOnlyRootFilesystem: true
           image: ${NODE_DRIVER_REGISTRAR_IMAGE}
           imagePullPolicy: IfNotPresent
           args:
@@ -136,6 +139,8 @@ spec:
             periodSeconds: 10
             failureThreshold: 5
         - name: csi-liveness-probe
+          securityContext:
+            readOnlyRootFilesystem: true
           image: ${LIVENESS_PROBE_IMAGE}
           imagePullPolicy: IfNotPresent
           args:
