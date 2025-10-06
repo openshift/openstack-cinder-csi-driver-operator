@@ -2,7 +2,6 @@
 
 aliases:
   openstack-approvers:
-  - dkokkino
   - gryf
   - mandre
   - pierreprinetti
